@@ -1,0 +1,25 @@
+{
+  "name": "tuition-tracker-app",
+  "version": "1.0.0",
+  "description": "Full-stack Tuition Tracker with Database, Payment Gateway and Student-Teacher Messaging",
+  "scripts": {
+    "install:all": "npm --prefix server install && npm --prefix client install",
+    "server": "npm --prefix server start",
+    "client": "npm --prefix client dev",
+    "dev": "node dev-runner.js"
+  },
+  "keywords": [
+    "tuition",
+    "tracker",
+    "react",
+    "payment-gateway",
+    "messaging",
+    "education"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^18.0.7",
+    "nodemailer": "^10.1.0"
+  }
+}
