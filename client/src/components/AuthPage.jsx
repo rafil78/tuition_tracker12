@@ -103,6 +103,26 @@ export default function AuthPage({ onGoToDashboard }) {
   const handleGoogleSignIn = async () => {
     setError('');
     if (!isFirebaseConfigured()) {
+      const confirmDemo = window.confirm(
+        '⚠️ ফায়ারবেস (Firebase) ক্লাউড এখনও কনফিগার করা হয়নি।\n\n' +
+        'আপনি কি সরাসরি গুগল ডেমো অ্যাকাউন্ট দিয়ে অ্যাপে প্রবেশ করতে চান?\n\n' +
+        '(আপনার নিজস্ব Firebase API Keys বসাতে "Cancel" চাপুন)'
+      );
+      if (confirmDemo) {
+        const demoGoogleUser = {
+          id: 'google-user-' + Date.now(),
+          name: 'Google পরীক্ষার্থী (Verified)',
+          email: 'student.google@edutrack.edu',
+          role: role || 'student',
+          avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=250',
+          title: 'Google অথেনটিকেশন পরীক্ষার্থী',
+          emailVerified: true
+        };
+        await switchUser(demoGoogleUser);
+        confetti({ particleCount: 70, spread: 60, origin: { y: 0.6 } });
+        if (onGoToDashboard) onGoToDashboard();
+        return;
+      }
       setShowFirebaseModal(true);
       return;
     }
