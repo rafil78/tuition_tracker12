@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8">
+  <title>EduTrack — পূর্ণাঙ্গ টেকনোলজি ও ফিচার আর্কিটেকচার রিপোর্ট</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Hind+Siliguri:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+    @page {
+      size: A4;
+      margin: 18mm 16mm 18mm 16mm;
+      @bottom-right {
+        content: counter(page);
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        font-size: 9pt;
+        color: #64748b;
+      }
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Hind Siliguri', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      color: #1e293b;
+      background-color: #ffffff;
+      line-height: 1.6;
+      font-size: 10.5pt;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .page {
+      page-break-after: always;
+      position: relative;
+    }
+
+    .page:last-child {
+      page-break-after: avoid;
+    }
+
+    /* Cover Page */
+    .cover {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 250mm;
+      padding: 20mm 10mm 15mm 10mm;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      background: linear-gradient(145deg, #0f172a 0%, #1e1b4b 60%, #0f172a 100%);
+      color: #ffffff;
+    }
+
+    .cover-badge {
+      display: inline-block;
+      align-self: flex-start;
+      background: rgba(99, 102, 241, 0.25);
+      border: 1px solid rgba(129, 140, 248, 0.4);
+      color: #a5b4fc;
+      padding: 6px 14px;
+      border-radius: 9999px;
+      font-size: 9pt;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .cover-title {
+      font-size: 32pt;
+      font-weight: 800;
+      line-height: 1.2;
+      margin-top: 25mm;
+      background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .cover-subtitle {
+      font-size: 14pt;
+      color: #94a3b8;
+      margin-top: 10px;
+      font-weight: 400;
+      line-height: 1.5;
+    }
+
+    .cover-meta-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 20px;
+      border-radius: 10px;
+      margin-top: 30mm;
+    }
+
+    .cover-meta-item h4 {
+      font-size: 8.5pt;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+
+    .cover-meta-item p {
+      font-size: 11pt;
+      font-weight: 600;
+      color: #f8fafc;
+    }
+
+    /* Content Typography */
+    h1, h2, h3, h4 {
+      color: #0f172a;
+      font-weight: 700;
+    }
+
+    h1 {
+      font-size: 20pt;
+      border-bottom: 2px solid #e2e8f0;
+      padding-bottom: 8px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    h2 {
+      font-size: 14pt;
+      margin-top: 20px;
+      margin-bottom: 10px;
+      color: #1e1b4b;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    h3 {
+      font-size: 11.5pt;
+      margin-top: 14px;
+      margin-bottom: 6px;
+      color: #334155;
+    }
+
+    p {
+      margin-bottom: 10px;
+      text-align: justify;
+    }
+
+    .lead-box {
+      background: #f8fafc;
+      border-left: 4px solid #4f46e5;
+      padding: 12px 16px;
+      border-radius: 0 8px 8px 0;
+      margin-bottom: 18px;
+      font-size: 10.5pt;
+    }
+
+    /* Tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12px 0 18px 0;
+      font-size: 9.5pt;
+    }
+
+    th, td {
+      border: 1px solid #e2e8f0;
+      padding: 8px 12px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: #f1f5f9;
+      color: #0f172a;
+      font-weight: 600;
+    }
+
+    tr:nth-child(even) td {
+      background: #f8fafc;
+    }
+
+    /* Card Grid */
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 14px;
+      margin: 14px 0 18px 0;
+    }
+
+    .card {
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 14px;
+      background: #ffffff;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+    }
+
+    .card.highlight {
+      border-color: #c7d2fe;
+      background: #fbfbfe;
+    }
+
+    .card-title {
+      font-weight: 700;
+      font-size: 11pt;
+      color: #1e1b4b;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .card-badge {
+      display: inline-block;
+      font-size: 7.5pt;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      font-weight: 600;
+      background: #e0e7ff;
+      color: #4338ca;
+    }
+
+    .card-badge.green {
+      background: #dcfce7;
+      color: #15803d;
+    }
+
+    .card-badge.purple {
+      background: #f3e8ff;
+      color: #7e22ce;
+    }
+
+    .card-badge.amber {
+      background: #fef3c7;
+      color: #b45309;
+    }
+
+    .card p {
+      font-size: 9.5pt;
+      color: #475569;
+      margin: 0;
+      line-height: 1.5;
+    }
+
+    /* Tech Stack Pill */
+    .tech-item {
+      margin-bottom: 14px;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+      background: #ffffff;
+    }
+
+    .tech-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+
+    .tech-name {
+      font-weight: 700;
+      font-size: 11pt;
+      color: #0f172a;
+    }
+
+    .tech-where {
+      font-size: 8.5pt;
+      background: #f1f5f9;
+      padding: 2px 8px;
+      border-radius: 4px;
+      color: #475569;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .tech-why {
+      font-size: 9.5pt;
+      color: #334155;
+    }
+
+    /* Flow Box / Architecture Diagram */
+    .arch-diagram {
+      background: #0f172a;
+      color: #f8fafc;
+      padding: 18px;
+      border-radius: 10px;
+      margin: 16px 0;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 8.5pt;
+      line-height: 1.5;
+      overflow-x: auto;
+    }
+
+    .footer-note {
+      font-size: 8.5pt;
+      color: #64748b;
+      border-top: 1px solid #e2e8f0;
+      padding-top: 8px;
+      margin-top: 20px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .code-tag {
+      font-family: 'JetBrains Mono', monospace;
+      background: #f1f5f9;
+      color: #0f172a;
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-size: 8.5pt;
+    }
+
+    .highlight-box {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 8px;
+      padding: 12px;
+      margin: 12px 0;
+      font-size: 9.5pt;
+      color: #1e40af;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ================= PAGE 1: COVER PAGE ================= -->
+  <div class="page cover">
+    <div>
+      <div class="cover-badge">Software Architecture & System Audit Report</div>
+      <h1 class="cover-title">EduTrack</h1>
+      <p class="cover-subtitle">স্মার্ট টিউশন ট্র্যাকার, রিয়েলটাইম ফি ম্যানেজমেন্ট ও হোম টিউটর রিক্রুটমেন্ট প্ল্যাটফর্ম</p>
+      <p style="color: #cbd5e1; font-size: 11pt; margin-top: 15px; max-width: 90%;">
+        অ্যাপ্লিকেশনটিতে ব্যবহৃত প্রতিটি টেকনোলজি স্ট্যাকের বিশদ বিশ্লেষণ, ব্যবহারের সুনির্দিষ্ট কারণ, ডাটাবেজ ও ক্লাউড সিঙ্ক আর্কিটেকচার এবং সকল ফিচারের পুঙ্খানুপুঙ্খ প্রযুক্তিগত মূল্যায়ন।
+      </p>
+    </div>
+
+    <div class="cover-meta-grid">
+      <div class="cover-meta-item">
+        <h4>প্রজেক্টের নাম</h4>
+        <p>EduTrack (Web & Mobile PWA)</p>
+      </div>
+      <div class="cover-meta-item">
+        <h4>আর্কিটেকচার টাইপ</h4>
+        <p>Fullstack Decoupled SPA + REST API + Cloud Sync</p>
+      </div>
+      <div class="cover-meta-item">
+        <h4>কোডবেজ রিপোজিটরি</h4>
+        <p>github.com/rafil78/tuition_tracker12</p>
+      </div>
+      <div class="cover-meta-item">
+        <h4>রিপোর্ট জেনারেশন তারিখ</h4>
+        <p>১৪ অক্টোবর, ২০২৬ (অক্টোবর ২০২৬ অডিট)</p>
+      </div>
+      <div class="cover-meta-item">
+        <h4>মেইনটেইনার / ইউজার রোল</h4>
+        <p>Admin, Teacher, Student (3-Tier RBAC)</p>
+      </div>
+      <div class="cover-meta-item">
+        <h4>মোবাইল প্ল্যাটফর্ম</h4>
+        <p>Android APK Ready (PWA / TWA Wrapper)</p>
+      </div>
+    </div>
+
+    <div style="font-size: 9pt; color: #64748b; text-align: center;">
+      Confidential Technical Documentation • Generated for Internal System Engineering & Product Audit
+    </div>
+  </div>
+
+  <!-- ================= PAGE 2: EXECUTIVE SUMMARY & ARCHITECTURE ================= -->
+  <div class="page" style="padding-top: 10mm;">
+    <h1>১. সিস্টেম ওভারভিউ ও সফটওয়্যার আর্কিটেকচার</h1>
+    
+    <div class="lead-box">
+      <strong>EduTrack</strong> মূলত একটি আধুনিক, হাই-পারফরম্যান্স টিউশন ও একাডেমিক ম্যানেজমেন্ট সিস্টেম। এটি একই সাথে তিনটি প্রধান ব্যবহারকারী গ্রুপ—<strong>অ্যাডমিন (Admin)</strong>, <strong>শিক্ষক (Teacher)</strong>, এবং <strong>শিক্ষার্থী/অভিভাবক (Student)</strong>-এর যাবতীয় দৈনন্দিন কার্যক্রম পরিচালনা করে।
+    </div>
+
+    <h2>১.১ হাই-লেভেল সিস্টেম আর্কিটেকচার</h2>
+    <p>
+      অ্যাপ্লিকেশনটি <strong>Unified Single-Service Fullstack Architecture</strong> মডেলে তৈরি করা হয়েছে। ফ্রন্টএন্ডে আধুনিক সিঙ্গেল পেজ অ্যাপ্লিকেশন (SPA) হিসেবে Vite + React 18 ব্যবহৃত হয়েছে এবং ব্যাকএন্ডে Express Node.js ব্যবহৃত হয়েছে। ব্যাকএন্ড সার্ভার নিজেই তার REST API পরিবেশনের পাশাপাশি অপ্টিমাইজড ফ্রন্টএন্ড বান্ডেল স্ট্যাটিক্যালি সার্ভ করতে সক্ষম।
+    </p>
+
+    <div class="arch-diagram">
++---------------------------------------------------------------------------------------------------+
+|                                  CLIENT TIER (Mobile App / Browser)                               |
+|  [ React 18 + Tailwind CSS + Lucide Icons + PWA Service Engine (manifest.json / Standalone) ]      |
++---------------------------------------------------------------------------------------------------+
+                                         │                              ▲
+                         HTTP / REST API │                              │ Realtime Snapshot
+                         & File Uploads  ▼                              │ Listeners (onSnapshot)
++----------------------------------------------------+  +-------------------------------------------+
+|               BACKEND TIER (Express.js)            |  |             CLOUD TIER (Firebase)         |
+|  - RESTful Endpoints (/api/students, /api/tuitions)|  |  - Cloud Firestore (Multi-device sync)    |
+|  - Role-based Access Control (RBAC)                |  |  - Firebase Realtime Database             |
+|  - File-based ACID Local DB (server/data/db.json)  |  |  - Firebase Authentication (Secure Tokens)|
+|  - Automated Emailer (Nodemailer Service)          |  |  - Cloud Storage (Receipts/Attachments)   |
++----------------------------------------------------+  +-------------------------------------------+
+    </div>
+
+    <h2>১.২ ট্রিপল-লেয়ার ডাটা ফ্লো ও অফলাইন রিলায়্যাবিলিটি</h2>
+    <p>
+      সিস্টেমটির ডাটা নির্ভরযোগ্যতা নিশ্চিত করতে <strong>৩-স্তরের ডাটা ব্যবস্থাপনা</strong> প্রয়োগ করা হয়েছে:
+    </p>
+    <ul>
+      <li><strong>লেয়ার ১ (লোকাল ফাস্ট মেমোরি / ক্যাশ):</strong> ক্লায়েন্টে React State এবং LocalStorage ইনস্ট্যান্ট UI রেসপন্স দেয়, ফলে ব্যবহারকারী কোনো প্রকার ল্যাগ বা লোডিং ছাড়াই কাজ করতে পারেন।</li>
+      <li><strong>লেয়ার ২ (ব্যাকএন্ড লোকাল ACID ডাটাবেজ):</strong> <span class="code-tag">server/data/database.json</span> এ স্বয়ংক্রিয় ফাইল-রাইট ও রিড লকিং নিশ্চিত করে কোনো জটিল এক্সটার্নাল ডাটাবেজ ইঞ্জিন ছাড়াই অ্যাপটি যেকোনো সাধারণ সার্ভারে লাইটওয়েটভাবে চলে।</li>
+      <li><strong>লেয়ার ৩ (ক্লাউড ফায়ারবেস অটো-সিঙ্ক):</strong> ক্লায়েন্টে সংযুক্ত <span class="code-tag">firestoreSync.js</span> ব্যাকগ্রাউন্ডে লোকাল পরিবর্তনের সাথে গুগল ক্লাউড ফায়ারস্টোরকে সিঙ্ক করে, যার ফলে রিয়েলটাইমে অন্য যেকোনো ডিভাইস থেকে ডাটা আপডেট হওয়া মাত্রই স্ক্রিনে প্রতিফলিত হয়।</li>
+    </ul>
+
+    <div class="footer-note">
+      <span>EduTrack Software Architecture Audit</span>
+      <span>পৃষ্ঠা ২</span>
+    </div>
+  </div>
+
+  <!-- ================= PAGE 3: TECHNOLOGY STACK (WHERE & WHY) ================= -->
+  <div class="page" style="padding-top: 10mm;">
+    <h1>২. ব্যবহৃত প্রযুক্তিসমূহ: কোথায় ও কেন ব্যবহার করা হয়েছে?</h1>
+    <p>প্রজেক্টের প্রতিটি টুল এবং লাইব্রেরি সর্বোচ্চ গতি, সর্বনিম্ন সাইজ ও সেরা ইউজার এক্সপেরিয়েন্সের লক্ষ্যে সতর্কতার সাথে নির্বাচন করা হয়েছে:</p>
+
+    <!-- React 18 -->
+    <div class="tech-item">
+      <div class="tech-header">
+        <span class="tech-name">১. React 18 (Frontend Framework)</span>
+        <span class="tech-where">client/src/**/*</span>
+      </div>
+      <div class="tech-why">
+        <strong>কোথায় ব্যবহার হয়েছে:</strong> সম্পূর্ণ ক্লায়েন্ট-সাইড ইউজার ইন্টারফেস, রিয়েক্টিভ স্টেট ম্যানেজমেন্ট, রিয়েল-টাইম সার্চ/ফিল্টারিং এবং কম্পোনেন্ট ভিত্তিক কাঠামোর মূল ভিত্তি হিসেবে।<br>
+        <strong>কেন ব্যবহার করা হয়েছে:</strong> React 18-এর ভার্চুয়াল ডম (Virtual DOM) এবং কনকারেন্ট ফিচার প্রতিবার সম্পূর্ণ পেজ রিলোড না করে শুধুমাত্র পরিবর্তিত অংশ আপডেট করে। এর ফলে মোবাইল বা ধীরগতির ইন্টারনেটেও অ্যাপটি অতি দ্রুত রেসপন্স করে।
+      </div>
+    </div>
+
+    <!-- Vite -->
+    <div class="tech-item">
+      <div class="tech-header">
+        <span class="tech-name">২. Vite 5 (Build Tool & Dev Server)</span>
+        <span class="tech-where">client/vite.config.js</span>
+      </div>
+      <div class="tech-why">
+        <strong>কোথায় ব্যবহার হয়েছে:</strong> ফ্রন্টএন্ড কোড কম্পাইলেশন, হট মডিউল রিপ্লেসমেন্ট (HMR) এবং প্রোডাকশন বান্ডেল অপ্টিমাইজেশন।<br>
+        <strong>কেন ব্যবহার করা হয়েছে:</strong> সনাতন Webpack-এর তুলনায় Vite নেটিভ ES Modules (ESM) এবং Rollup ব্যবহার করে কয়েক মিলি-সেকেন্ডে সার্ভার চালু ও কোড বান্ডেল তৈরি করে, যা প্রোডাকশন বিল্ডকে অত্যন্ত হালকা ও দ্রুতগতির করে তোলে।
+      </div>
+    </div>
+
+    <!-- Tailwind CSS -->
+    <div class="tech-item">
+      <div class="tech-header">
+        <span class="tech-name">৩. Tailwind CSS 3 & PostCSS</span>
+        <span class="tech-where">client/src/index.css & tailwind.config.js</span>
+      </div>
+      <div class="tech-why">
+        <strong>কোথায় ব্যবহার হয়েছে:</strong> সম্পূর্ণ অ্যাপ্লিকেশনের ডিজাইন সিস্টেম, কালার প্যালেট, কার্ড, বাটন, মোডাল ও রেসপনসিভ গ্রিড।<br>
+        <strong>কেন ব্যবহার করা হয়েছে:</strong> ইউটিলিটি-ফার্স্ট হওয়ায় কোনো ভারী CSS ফ্রেমওয়ার্ক ছাড়াই একদম কাস্টম, ক্লিন ও মডার্ন লুক তৈরি করা সম্ভব হয়েছে। মোবাইল, ট্যাবলেট ও বড় ডিসপ্লেতে স্বয়ংক্রিয় অ্যাডাপ্টিভ রেসপনসিভনেস নিশ্চিত করেছে।
+      </div>
+    </div>
+
+    <!-- Node.js & Express -->
+    <div class="tech-item">
+      <div class="tech-header">
+        <span class="tech-name">৪. Node.js & Express.js (REST Backend)</span>
+        <span class="tech-where">server/server.js & server/db.js</span>
+      </div>
+      <div class="tech-why">
+        <strong>কোথায় ব্যবহার হয়েছে:</strong> কেন্দ্রীয় ব্যাকএন্ড এপিআই সার্ভার, রিকোয়েস্ট রাউটিং, রোল-ভিত্তিক অ্যাক্সেস এবং স্ট্যাটিক বিল্ড সার্ভিং।<br>
+        <strong>কেন ব্যবহার করা হয়েছে:</strong> Node.js-এর নন-ব্লকিং I/O এবং ইভেন্ট-ড্রিভেন আর্কিটেকচার অল্প র‍্যাম ও প্রসেসরেও বিপুল সংখ্যক রিকোয়েস্ট নিখুঁতভাবে হ্যান্ডেল করতে পারে। Express সহজ ও দ্রুত RESTful এন্ডপয়েন্ট তৈরি নিশ্চিত করে।
+      </div>
+    </div>
+
+    <!-- Google Firebase -->
+    <div class="tech-item">
+      <div class="tech-header">
+        <span class="tech-name">৫. Google Firebase (Firestore, Auth & Storage)</span>
+        <span class="tech-where">client/src/firebase.js & firestoreSync.js</span>
+      </div>
+      <div class="tech-why">
+        <strong>কোথায় ব্যবহার হয়েছে:</strong> ক্লাউড ডাটা পারসিস্টেন্স, রিয়েল-টাইম ডাটা সিঙ্ক (Snapshot Listeners) এবং ডিভাইসের মধ্যে তাৎক্ষণিক সংযোগ।<br>
+        <strong>কেন ব্যবহার করা হয়েছে:</strong> মাল্টি-ডিভাইস ব্যবহারের সময় একজন শিক্ষক তার ফোন থেকে স্ট্যাটাস পরিবর্তন করলে বা কোনো শিক্ষার্থী রিকোয়েস্ট পাঠালে ক্লাউড সিঙ্কের মাধ্যমে তা সাথে সাথে অ্যাডমিন ও অন্যান্য ডিভাইসে সিঙ্ক হয়ে যায়।
+      </div>
+    </div>
+
+    <div class="footer-note">
+      <span>EduTrack Software Architecture Audit</span>
+      <span>পৃষ্ঠা ৩</span>
+    </div>
+  </div>
+
+  <!-- ================= PAGE 4: TECHNOLOGY STACK CONTINUED & PWA ================= -->
+  <div class="page" style="padding-top: 10mm;">
+    <h1>২. ব্যবহৃত প্রযুক্তিসমূহ (চলমান)</h1>
+
+    <!-- Lucide Icons -->
+    <div class="tech-item">
+      <div class="tech-header">
+        <span class="tech-name">৬. Lucide React (Vector Iconography)</span>
+        <span class="tech-where">client/src/components/**/*.jsx</span>
+      </div>
+      <div class="tech-why">
+        <strong>কোথায় ব্যবহার হয়েছে:</strong> সাইডবার মেনু, অ্যাকশন বাটন, স্ট্যাটাস ব্যাজ, ড্যাশবোর্ড কার্ড ও অ্যালার্ট আইকন।<br>
+        <strong>কেন ব্যবহার করা হয়েছে:</strong> এটি ফন্ট-অসাম বা সাধারণ ইমেজের চেয়ে অনেক হালকা, ক্লিন SVG ভেক্টর ফরম্যাট সাপোর্ট করে এবং যেকোনো ডিসপ্লে সাইজে শার্প ও ক্রিস্প দেখায়।
+      </div>
+    </div>
+
+    <!-- Lowdb File Engine -->
+    <div class="tech-item">
+      <div class="tech-header">
+        <span class="tech-name">৭. Lightweight File-Based JSON Database</span>
+        <span class="tech-where">server/db.js & server/data/database.json</span>
+      </div>
+      <div class="tech-why">
+        <strong>কোথায় ব্যবহার হয়েছে:</strong> সার্ভারের অভ্যন্তরীণ ডাটাবেজ যাতে সকল স্টুডেন্ট, টিচার, পেমেন্ট, ক্লাস রুটিন ও রিকোয়েস্ট সংরক্ষিত থাকে।<br>
+        <strong>কেন ব্যবহার করা হয়েছে:</strong> কোনো ভারী MySQL বা MongoDB সার্ভার ইনস্টলেশন বা কনফিগারেশন ছাড়াই জিরো-কনফিগ ডিপ্লয়মেন্ট নিশ্চিত করার জন্য। এটি ফাইল সিস্টেমে ACID সেইফ রাইটিং ও রিডিং প্রদান করে।
+      </div>
+    </div>
+
+    <!-- PWA & Web App Manifest -->
+    <div class="tech-item">
+      <div class="tech-header">
+        <span class="tech-name">৮. Progressive Web App (PWA) Engine & Manifest</span>
+        <span class="tech-where">client/public/manifest.json & index.html</span>
+      </div>
+      <div class="tech-why">
+        <strong>কোথায় ব্যবহার হয়েছে:</strong> ওয়েব অ্যাপ্লিকেশনটিকে অ্যান্ড্রয়েড/আইওএস নেটিভ মোবাইল অ্যাপে রূপান্তর করতে।<br>
+        <strong>কেন ব্যবহার করা হয়েছে:</strong> <span class="code-tag">display: standalone</span>, <span class="code-tag">id: "ET"</span> এবং ১৯২x১৯২ ও ৫১২x৫১২ মাস্কেবল আইকন ব্যবহারের ফলে ব্যবহারকারী ব্রাউজার ইউআরএল বার ছাড়াই এটিকে ফুলস্ক্রিন মোবাইল অ্যাপ আকারে ইনস্টল ও ব্যবহার করতে পারেন।
+      </div>
+    </div>
+
+    <!-- Canvas Confetti -->
+    <div class="tech-item">
+      <div class="tech-header">
+        <span class="tech-name">৯. Canvas-Confetti & Dynamic Audio</span>
+        <span class="tech-where">client/src/components/PaymentView.jsx & TuitionJobsView.jsx</span>
+      </div>
+      <div class="tech-why">
+        <strong>কোথায় ব্যবহার হয়েছে:</strong> ফি পরিশোধ সম্পন্ন হওয়া এবং শিক্ষকের টিউশন রিকোয়েস্ট গ্রহণ (Accept) করার মুহূর্তে।<br>
+        <strong>কেন ব্যবহার করা হয়েছে:</strong> গ্যামিফিকেশন ও পজিটিভ ফিডব্যাক প্রদান করতে, যাতে ব্যবহারকারী আর্থিক লেনদেন বা জব অ্যাকসেপ্টের সাথে সাথে আনন্দদায়ক ভিজ্যুয়াল নিশ্চিতকরণ পান।
+      </div>
+    </div>
+
+    <!-- Nodemailer -->
+    <div class="tech-item">
+      <div class="tech-header">
+        <span class="tech-name">১০. Nodemailer SMTP Service</span>
+        <span class="tech-where">server/server.js</span>
+      </div>
+      <div class="tech-why">
+        <strong>কোথায় ব্যবহার হয়েছে:</strong> ইমেইল নোটিফিকেশন, বকেয়া ফির ইনভয়েস ও রসিদ প্রেরণ মডিউলে।<br>
+        <strong>কেন ব্যবহার করা হয়েছে:</strong> স্বয়ংক্রিয় ব্যাকগ্রাউন্ড ইমেইলিংয়ের মাধ্যমে ছাত্র বা অভিভাবকদের নিয়মিত আপডেট দেওয়া সম্ভব হয়।
+      </div>
+    </div>
+
+    <div class="footer-note">
+      <span>EduTrack Software Architecture Audit</span>
+      <span>পৃষ্ঠা ৪</span>
+    </div>
+  </div>
+
+  <!-- ================= PAGE 5: COMPLETE FEATURE BREAKDOWN ================= -->
+  <div class="page" style="padding-top: 10mm;">
+    <h1>৩. সিস্টেমের প্রধান ফিচার ও কার্যপ্রণালী বিশ্লেষণ</h1>
+    <p>EduTrack শুধুমাত্র একটি ফি ট্র্যাকার নয়, বরং এটি শিক্ষা কার্যক্রমের একটি স্বয়ংসম্পূর্ণ ইকোসিস্টেম। প্রধান ফিচারগুলো নিচে দেওয়া হলো:</p>
+
+    <div class="card-grid">
+      <!-- 1. RBAC -->
+      <div class="card highlight">
+        <div class="card-title">
+          <span>১. ট্রিপল-রোল অথেনটিকেশন (RBAC)</span>
+          <span class="card-badge">কোর সিকিউরিটি</span>
+        </div>
+        <p>
+          অ্যাডমিন, শিক্ষক এবং ছাত্রের জন্য পৃথক অনুমতি (Permissions)। অ্যাডমিন সার্বিক নিয়ন্ত্রণ পান, শিক্ষক শুধুমাত্র নিজের ব্যাচ ও নতুন জব দেখতে পান, এবং ছাত্র শুধুমাত্র নিজের ফি ও শিক্ষক খোঁজার সুবিধা পায়। ১-ক্লিকে টেস্ট প্রোফাইল সুইচের সুযোগ রয়েছে।
+        </p>
+      </div>
+
+      <!-- 2. Home Tuition Marketplace -->
+      <div class="card highlight">
+        <div class="card-title">
+          <span>২. হোম টিউটর ফাইন্ডিং মার্কেটপ্লেস</span>
+          <span class="card-badge green">নতুন ফিচার</span>
+        </div>
+        <p>
+          শিক্ষার্থীরা তাদের পছন্দমতো বিষয় (Math, Physics, Bangla), এলাকা (ধানমন্ডি, মিরপুর) ও বাজেট দিয়ে ভেরিফায়েড শিক্ষকদের প্রোফাইল, রেটিং ও অভিজ্ঞতা দেখে সরাসরি হায়ার রিকোয়েস্ট পাঠাতে পারে কিংবা ওপেন টিউশন জব পোস্ট করতে পারে।
+        </p>
+      </div>
+
+      <!-- 3. Teacher Job Board -->
+      <div class="card highlight">
+        <div class="card-title">
+          <span>৩. শিক্ষকের জব বোর্ড (Accept/Reject)</span>
+          <span class="card-badge purple">নতুন ফিচার</span>
+        </div>
+        <p>
+          শিক্ষকের ড্যাশবোর্ডে নতুন টিউশন রিকোয়েস্ট আসামাত্রই কাউন্টার ব্যাজ ও নোটিফিকেশন অ্যালার্ট যায়। শিক্ষক শিক্ষার্থীর ক্লাসের বিষয়, এলাকা ও অফারকৃত বেতন দেখে ১-ক্লিকে <strong>✓ গ্রহণ (Accept)</strong> বা <strong>✕ বাতিল (Reject)</strong> করতে পারেন এবং কারণ উল্লেখ করতে পারেন।
+        </p>
+      </div>
+
+      <!-- 4. Real-time Cross-Role Chat -->
+      <div class="card">
+        <div class="card-title">
+          <span>৪. রিয়েল-টাইম ক্রস-রোল মেসেজিং</span>
+          <span class="card-badge">কমিউনিকেশন</span>
+        </div>
+        <p>
+          অ্যাডমিন, টিচার এবং স্টুডেন্টের মধ্যে তাত্ক্ষণিক দ্বিপাক্ষিক চ্যাট সুবিধা। কোনো টিচার জব অ্যাকসেপ্ট করা মাত্রই চ্যাটবক্সে স্বয়ংক্রিয় ওয়েলকাম মেসেজ ড্রপ হয়। আনরিড মেসেজ কাউন্টার এবং ফিল্টার ব্যবস্থা যুক্ত রয়েছে।
+        </p>
+      </div>
+
+      <!-- 5. Fee & Multi-Due Tracking -->
+      <div class="card">
+        <div class="card-title">
+          <span>৫. ফি ও বকেয়া ট্র্যাকিং (Multi-Due)</span>
+          <span class="card-badge amber">ফাইন্যান্স</span>
+        </div>
+        <p>
+          স্বয়ংক্রিয় মাসিক ইনভয়েস জেনারেশন, বকেয়া টাকার হিসাব, আংশিক ও পূর্ণ পরিশোধ (Partial/Full Payment) এবং মানি রিসিট প্রিন্ট করার সুবিধা। একাধিক বকেয়া থাকা ডেমো ছাত্র প্রোফাইল যুক্ত আছে যাতে অডিট টেস্ট করা যায়।
+        </p>
+      </div>
+
+      <!-- 6. Batch & Class Routine -->
+      <div class="card">
+        <div class="card-title">
+          <span>৬. ক্লাস রুটিন ও লাইভ কাউন্টডাউন</span>
+          <span class="card-badge">একাডেমিক</span>
+        </div>
+        <p>
+          সাপ্তাহিক ক্লাসের দিন, নির্দিষ্ট সময় ও বিষয় নির্ধারণ। ড্যাশবোর্ডে আগামী ক্লাসের সময় ও লাইভ কাউন্টডাউন প্রদর্শিত হয়, যাতে কোনো ক্লাস মিস না হয়।
+        </p>
+      </div>
+
+      <!-- 7. Smart Attendance -->
+      <div class="card">
+        <div class="card-title">
+          <span>৭. স্মার্ট হাজিরা ও প্রেজেন্স রেট</span>
+          <span class="card-badge">রেকর্ডস</span>
+        </div>
+        <p>
+          প্রতিটি ক্লাসের ভিত্তিতে শিক্ষার্থীদের উপস্থিতি (Present), অনুপস্থিতি (Absent) ও বিলম্ব (Late) ট্র্যাক করা যায়। মাস শেষে অটো পার্সেন্টেজ ও স্ট্রিক অ্যানালাইসিস প্রদর্শিত হয়।
+        </p>
+      </div>
+
+      <!-- 8. Multi-Language & Dark Theme -->
+      <div class="card">
+        <div class="card-title">
+          <span>৮. দ্বিভাষিক (বাংলা/ইংরেজি) সমর্থন</span>
+          <span class="card-badge">ইউজার এক্সপেরিয়েন্স</span>
+        </div>
+        <p>
+          সমগ্র ইন্টারফেসটি এক ক্লিকেই সম্পূর্ণ বাংলায় অথবা আন্তর্জাতিক প্রমিত ইংরেজিতে রূপান্তর করা যায়। প্রফেশনাল ফন্ট ও কালার কনট্রাস্ট নিশ্চিত করা হয়েছে।
+        </p>
+      </div>
+    </div>
+
+    <div class="footer-note">
+      <span>EduTrack Software Architecture Audit</span>
+      <span>পৃষ্ঠা ৫</span>
+    </div>
+  </div>
+
+  <!-- ================= PAGE 6: DATABASE SCHEMA & CLOUD SYNC ================= -->
+  <div class="page" style="padding-top: 10mm;">
+    <h1>৪. ডাটাবেজ মডেল ও ক্লাউড সিঙ্ক আর্কিটেকচার</h1>
+    <p>EduTrack-এর ডাটা মডেল অত্যন্ত রিলেশনাল ও স্ট্রাকচার্ড, যা ফাইল ডাটাবেজ এবং ক্লাউড ফায়ারস্টোর উভয় স্থানেই অভিন্ন মডেলে কাজ করে:</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 25%;">কালেকশন / টেবিল</th>
+          <th style="width: 40%;">মূল ফিল্ডসমূহ (Attributes)</th>
+          <th style="width: 35%;">উদ্দেশ্য ও সম্পর্ক</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>students</strong></td>
+          <td>id, name, roll, phone, email, subjects, monthlyFee, status, avatar, batchId</td>
+          <td>শিক্ষার্থীদের বায়োডাটা, ব্যাচ ম্যাপিং ও প্রতি মাসের নির্ধারিত টিউশন ফি।</td>
+        </tr>
+        <tr>
+          <td><strong>teachers</strong></td>
+          <td>id, name, phone, email, qualification, experience, rating, hourlyRate, areas</td>
+          <td>শিক্ষকদের তথ্য, ভেরিফিকেশন স্ট্যাটাস ও পড়ানোর এলাকা ও রেটিং।</td>
+        </tr>
+        <tr>
+          <td><strong>tuition_requests</strong></td>
+          <td>id, studentId, teacherId, subject, classGrade, area, proposedFee, status, responseNote</td>
+          <td>হোম টিউটর রিক্রুটমেন্ট ও জবের বিস্তারিত ট্র্যাকিং (pending, accepted, rejected)।</td>
+        </tr>
+        <tr>
+          <td><strong>payments</strong></td>
+          <td>id, studentId, amount, month, date, method (Bkash/Nagad/Cash), status, trxId</td>
+          <td>আর্থিক লেনদেনের পূর্ণাঙ্গ হিসেব, ইনভয়েস নম্বর ও ক্যাশ ফ্লো অডিট ট্রেইল।</td>
+        </tr>
+        <tr>
+          <td><strong>classes / routine</strong></td>
+          <td>id, subject, teacherId, batchName, daysOfWeek, startTime, endTime, room</td>
+          <td>ক্লাসের সাপ্তাহিক শিডিউল ও স্বয়ংক্রিয় রুটিন ড্যাশবোর্ড ডিসপ্লে।</td>
+        </tr>
+        <tr>
+          <td><strong>messages</strong></td>
+          <td>id, senderId, senderRole, receiverId, receiverRole, text, timestamp, isRead</td>
+          <td>ক্রস-রোল তাৎক্ষণিক বার্তা বিনিময় এবং আনরিড নোটিফিকেশন হিসেব।</td>
+        </tr>
+        <tr>
+          <td><strong>notifications</strong></td>
+          <td>id, targetUserId, title, body, type, isRead, createdAt</td>
+          <td>ফি বকেয়া, নতুন ক্লাসের রিমাইন্ডার ও নতুন টিউশন জবের পুশ নোটিফিকেশন।</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>৪.১ ফায়ারবেস কনসোল সরাসরি লিংক ইন্টিগ্রেশন</h2>
+    <p>
+      অ্যাপের <strong>Firebase Cloud Setup Modal</strong>-এ ১-ক্লিক ডিরেক্ট শর্টকাট যুক্ত রয়েছে। এর মাধ্যমে ডেভেলপার বা অ্যাডমিন সরাসরি কোনো ম্যানুয়াল সার্চ ছাড়াই গুগল ক্লাউড কনসোলের চারটি নির্দিষ্ট সেকশন ওপেন করতে পারেন:
+    </p>
+    <ul>
+      <li><strong>Cloud Firestore Data:</strong> <span class="code-tag">edutrack_students</span>, <span class="code-tag">edutrack_tuition_requests</span> সহ সমস্ত লাইভ কালেকশন টেবিল সরাসরি দেখা যায়।</li>
+      <li><strong>Realtime Database:</strong> রিয়েলটাইম স্টেট ও কানেক্টিভিটি পর্যবেক্ষণ করা যায়।</li>
+      <li><strong>Authentication Users:</strong> রেজিস্টার্ড ইউজার তালিকা ও সিকিউরিটি রুলস যাচাই করা যায়।</li>
+      <li><strong>Firebase Storage:</strong> আপলোডকৃত ডকুমেন্ট ও রিসিটের ফাইল স্টোরেজ পরিদর্শনের সুযোগ।</li>
+    </ul>
+
+    <div class="footer-note">
+      <span>EduTrack Software Architecture Audit</span>
+      <span>পৃষ্ঠা ৬</span>
+    </div>
+  </div>
+
+  <!-- ================= PAGE 7: MOBILE APP (APK) CONVERSION & DEPLOYMENT ================= -->
+  <div class="page" style="padding-top: 10mm;">
+    <h1>৫. মোবাইল অ্যাপ (APK) রূপান্তর ও ডিপ্লয়মেন্ট প্রক্রিয়া</h1>
+    
+    <div class="highlight-box">
+      <strong>PWA to Native APK:</strong> EduTrack-কে এমনভাবে ডিজাইন করা হয়েছে যাতে এটি যেকোনো অ্যান্ড্রয়েড ডিভাইসে কোনো ওয়েব ভিউ ফ্রেম ছাড়াই খাঁটি নেটিভ অ্যাপের মতো ফুলস্ক্রিনে চালু হতে পারে।
+    </div>
+
+    <h2>৫.১ PWA কনফিগারেশন স্ট্যান্ডার্ড</h2>
+    <p>
+      সিস্টেমে <span class="code-tag">client/public/manifest.json</span> ফাইলটি গুগল ও ডব্লিউথ্রিসি (W3C) স্ট্যান্ডার্ড অনুযায়ী কনফিগার করা হয়েছে:
+    </p>
+    <ul>
+      <li><strong>অ্যাপ আইডেন্টিফায়ার (ID):</strong> <span class="code-tag">"id": "ET"</span> যুক্ত করা হয়েছে, যার ফলে ডিভাইস এটিকে ইউনিক অ্যাপ প্যাকেজ হিসেবে শনাক্ত করে।</li>
+      <li><strong>ডিসপ্লে মোড:</strong> <span class="code-tag">"display": "standalone"</span> ব্যবহারের মাধ্যমে ব্রাউজারের নেভিগেশন ও অ্যাড্রেস বার গোপন থাকে।</li>
+      <li><strong>হাই-রেজোলিউশন মাস্কেবল আইকন:</strong> ১৯২x১৯২ এবং ৫১২x৫১২ সাইজের পিএনজি আইকন (<span class="code-tag">icon-192.png</span>, <span class="code-tag">icon-512.png</span>) সংযুক্ত, যা অ্যান্ড্রয়েডের স্কুইরকেল, রাউন্ড বা স্কয়ার শেপে নিখুঁত দেখায়।</li>
+    </ul>
+
+    <h2>৫.২ সার্ভার ডিপ্লয়মেন্ট গাইড (Render.com)</h2>
+    <p>
+      যেহেতু গিটহাবে (<span class="code-tag">https://github.com/rafil78/tuition_tracker12.git</span>) সম্পূর্ণ সোর্স কোড পুশ করা রয়েছে, ক্লাউড প্ল্যাটফর্মে অ্যাপটি লাইভ করার স্টেপগুলো নিম্নরূপ:
+    </p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>কনফিগারেশন ফিল্ড</th>
+          <th>সঠিক মান (Configuration Value)</th>
+          <th>ব্যাখ্যা</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Environment</strong></td>
+          <td>Node</td>
+          <td>Node.js রানটাইম ব্যাকএন্ড সার্ভিসের জন্য।</td>
+        </tr>
+        <tr>
+          <td><strong>Build Command</strong></td>
+          <td><span class="code-tag">npm --prefix client install && npm --prefix client run build && npm --prefix server install</span></td>
+          <td>ফ্রন্টএন্ড ক্লায়েন্ট বান্ডেল তৈরি ও সার্ভার ডিপেন্ডেন্সি ইনস্টল করে।</td>
+        </tr>
+        <tr>
+          <td><strong>Start Command</strong></td>
+          <td><span class="code-tag">node server/server.js</span></td>
+          <td>ইউনিফাইড এক্সপ্রেস সার্ভার চালু করে।</td>
+        </tr>
+        <tr>
+          <td><strong>PORT (Environment Var)</strong></td>
+          <td><span class="code-tag">5000</span> (বা Render এর ডিফল্ট 10000)</td>
+          <td>সার্ভারের পোর্ট নির্ধারণ করে।</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>৫.৩ ১-ক্লিকে ইনস্টলেবল APK তৈরির পদ্ধতি</h2>
+    <ol style="margin-left: 20px; line-height: 1.8; font-size: 10pt;">
+      <li>Render-এ ডেপ্লয় করার পর প্রাপ্ত পাবলিক ইউআরএল (যেমন: <span class="code-tag">https://edutrack.onrender.com</span>) কপি করুন।</li>
+      <li>মাইক্রোসফটের ওপেন সোর্স <strong>PWABuilder (pwabuilder.com)</strong>-এ গিয়ে ইউআরএলটি পেস্ট করুন।</li>
+      <li>সাইটের Manifest এবং Icon যাচাই হয়ে ১০০% স্কোর প্রদর্শন করবে।</li>
+      <li><strong>"Package for Stores"</strong> থেকে <strong>"Android"</strong> সিলেক্ট করে <strong>"Generate"</strong> চাপলেই কয়েক সেকেন্ডে আপনার সাইন করা ইনস্টলেবল <strong>.apk</strong> ফাইল ডাউনলোড হয়ে যাবে!</li>
+    </ol>
+
+    <div class="footer-note">
+      <span>EduTrack Software Architecture Audit</span>
+      <span>পৃষ্ঠা ৭</span>
+    </div>
+  </div>
+
+  <!-- ================= PAGE 8: SECURITY, SCALABILITY & CONCLUSION ================= -->
+  <div class="page" style="padding-top: 10mm;">
+    <h1>৬. নিরাপত্তা, স্কেলেবিলিটি ও টেকনিক্যাল কনক্লুশন</h1>
+
+    <h2>৬.১ সিকিউরিটি ও ডাটা প্রোটেকশন</h2>
+    <ul>
+      <li><strong>ক্লায়েন্ট-সাইড সেনিটাইজেশন:</strong> প্রতিটি ফর্মে ইনপুট ভ্যালিডেশন রয়েছে, যা ক্রস সাইট স্ক্রিপ্টিং (XSS) প্রতিরোধ করে।</li>
+      <li><strong>CORS প্রোটেকশন:</strong> এক্সপ্রেস সার্ভারে অরিজিন ফিল্টারিং যুক্ত করা রয়েছে, ফলে অননুমোদিত ডোমেইন থেকে এপিআই হিট করা সম্ভব নয়।</li>
+      <li><strong>রোল-ভিত্তিক ভিউ কন্ট্রোল:</strong> শুধুমাত্র নির্দিষ্ট রোল আইডি ম্যাচ করলেই সংবেদনশীল অ্যাকশন বাটন দৃশ্যমান ও কার্যকর হয়।</li>
+    </ul>
+
+    <h2>৬.২ ভবিষ্যৎ সম্প্রসারণযোগ্যতা (Scalability)</h2>
+    <p>
+      বর্তমান আর্কিটেকচারটি অত্যন্ত মডুলার। ভবিষ্যতে যেকোনো বড় প্রতিষ্ঠানে ব্যবহারের জন্য এটি প্রস্তুত:
+    </p>
+    <ul>
+      <li><strong>পেমেন্ট গেটওয়ে সংযোজন:</strong> সরাসরি বিকাশ, নগদ বা এসএসএলকমার্জ (SSLCommerz) অটোমেটেড গেটওয়ে এপিআই সার্ভারে <span class="code-tag">server/routes</span> হিসেবে সহজেই প্লাগ করা সম্ভব।</li>
+      <li><strong>এসএমএস গেটওয়ে (SMS Gateway):</strong> ক্লাসের নোটিফিকেশন বা বকেয়ার মেসেজ সরাসরি অভিভাবকদের মোবাইল নম্বরে পুশ করার জন্য টুইলিও বা বাল্ক এসএমএস বিডি এপিআই ইন্টিগ্রেট করা যাবে।</li>
+      <li><strong>ভিডিও ক্লাসরুম:</strong> জুম (Zoom) বা গুগল মিট (Google Meet) এপিআই যুক্ত করে অ্যাপের ভেতর থেকেই সরাসরি লাইভ অনলাইন ক্লাস চালুর সক্ষমতা রয়েছে।</li>
+    </ul>
+
+    <div style="margin-top: 30px; padding: 18px; border: 2px solid #0f172a; border-radius: 10px; background: #f8fafc;">
+      <h3 style="color: #0f172a; margin-top: 0; font-size: 12pt;">প্রকৌশল মূল্যায়ন ও উপসংহার</h3>
+      <p style="margin-bottom: 0; font-size: 10pt; text-align: justify;">
+        <strong>EduTrack</strong> কোডবেজটি একটি পূর্ণাঙ্গ, আধুনিক ও বাণিজ্যিকভাবে ব্যবহারের উপযোগী সফটওয়্যার সমাধান। প্রযুক্তি নির্বাচনের ক্ষেত্রে হালকা আকার, উচ্চ গতি ও রক্ষণাবেক্ষণের সহজতার দিকে সর্বোচ্চ অগ্রাধিকার দেওয়া হয়েছে। এর ট্রিপল-লেয়ার ডাটা আর্কিটেকচার, স্বয়ংক্রিয় ক্লাউড সিঙ্ক, ইন্টিগ্রেটেড মার্কেটপ্লেস এবং পিডব্লিউএ ভিত্তিক ইনস্টলেবল মোবাইল অ্যাপ সক্ষমতা এটিকে সাধারণ টিউশন ম্যানেজমেন্ট সিস্টেমের চেয়ে বহুগুণ উন্নত করে তুলেছে।
+      </p>
+    </div>
+
+    <div style="margin-top: 40px; display: flex; justify-content: space-between; align-items: flex-end;">
+      <div>
+        <p style="font-weight: 700; color: #0f172a; margin-bottom: 2px;">EduTrack Core Engineering Team</p>
+        <p style="font-size: 9pt; color: #64748b;">System Design & Architecture Division</p>
+      </div>
+      <div style="text-align: right;">
+        <span class="card-badge green" style="font-size: 9pt; padding: 4px 12px;">STATUS: VERIFIED & PRODUCTION READY</span>
+      </div>
+    </div>
+
+    <div class="footer-note" style="margin-top: 30mm;">
+      <span>EduTrack Software Architecture Audit • End of Report</span>
+      <span>পৃষ্ঠা ৮</span>
+    </div>
+  </div>
+
+</body>
+</html>
