@@ -1,3 +1,12 @@
+import { 
+  MOCK_STATS, 
+  MOCK_CLASSES, 
+  MOCK_INVOICES, 
+  MOCK_ENROLLMENTS, 
+  MOCK_TUITION_REQUESTS, 
+  MOCK_TUTORS 
+} from './mockData';
+
 // Base API URL configuration - supports Web, Native Android APK & Cloud backend
 export const getApiBase = () => {
   if (typeof window !== 'undefined') {
@@ -5,7 +14,7 @@ export const getApiBase = () => {
     if (savedUrl) {
       return savedUrl.replace(/\/$/, '') + '/api';
     }
-    // Detect Capacitor native platform or mobile webview running on localhost without dev port
+    // Detect Capacitor native platform or mobile webview
     const isNativeMobile = 
       Boolean(window.Capacitor?.isNativePlatform?.()) ||
       window.location.protocol === 'file:' ||
@@ -14,10 +23,19 @@ export const getApiBase = () => {
       (window.location.origin === 'https://localhost');
 
     if (isNativeMobile) {
+      // Default to live Render backend or Wi-Fi IP
       return 'https://tuition-tracker12.onrender.com/api';
     }
   }
   return '/api';
+};
+
+export const setServerUrl = (url) => {
+  if (!url || url === 'default' || url === 'offline') {
+    localStorage.removeItem('edutrack_server_url');
+  } else {
+    localStorage.setItem('edutrack_server_url', url);
+  }
 };
 
 const getUrl = (path) => `${getApiBase()}${path}`;
@@ -25,7 +43,12 @@ const getUrl = (path) => `${getApiBase()}${path}`;
 async function safeFetch(path, options = {}, fallback = null) {
   try {
     const url = getUrl(path);
-    const res = await fetch(url, options);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 4000); // 4s timeout
+
+    const res = await fetch(url, { ...options, signal: controller.signal });
+    clearTimeout(timeoutId);
+
     if (!res.ok) {
       const errData = await res.json().catch(() => ({}));
       if (fallback !== null && (!res.status || res.status >= 500)) {
@@ -43,12 +66,7 @@ async function safeFetch(path, options = {}, fallback = null) {
 export const api = {
   // Stats
   async getStats() {
-    return safeFetch('/stats/summary', {}, {
-      totalStudents: 12,
-      activeBatches: 5,
-      monthlyRevenue: 45000,
-      attendanceRate: 94
-    });
+    return safeFetch('/stats/summary', {}, MOCK_STATS);
   },
 
   // Auth
@@ -87,155 +105,118 @@ export const api = {
   },
 
   async deleteUser(id) {
-    const res = await fetch(`${API_BASE}/users/${id}`, { method: 'DELETE' });
-    const data = await res.json();
-    if (!res.ok) {
-      throw new Error(data.error || 'ব্যবহারকারী ডিলিট ব্যর্থ হয়েছে');
-    }
-    return data;
+    return safeFetch(`/users/${id}`, { method: 'DELETE' });
   },
 
   async updateUser(id, userData) {
-    const res = await fetch(`${API_BASE}/users/${id}`, {
+    return safeFetch(`/users/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(userData),
     });
-    const data = await res.json();
-    if (!res.ok) {
-      throw new Error(data.error || 'ব্যবহারকারী আপডেট ব্যর্থ হয়েছে');
-    }
-    return data;
   },
 
   // Classes
   async getClasses(teacherId) {
-    const url = teacherId ? `${API_BASE}/classes?teacherId=${teacherId}` : `${API_BASE}/classes`;
-    const res = await fetch(url);
-    return res.json();
+    const path = teacherId ? `/classes?teacherId=${teacherId}` : `/classes`;
+    return safeFetch(path, {}, MOCK_CLASSES);
   },
 
   async createClass(classData) {
-    const res = await fetch(`${API_BASE}/classes`, {
+    return safeFetch('/classes', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(classData),
     });
-    const data = await res.json();
-    if (!res.ok) {
-      throw new Error(data.error || 'ক্লাস তৈরি ব্যর্থ হয়েছে');
-    }
-    return data;
   },
 
   async updateClass(id, updates) {
-    const res = await fetch(`${API_BASE}/classes/${id}`, {
+    return safeFetch(`/classes/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updates),
     });
-    const data = await res.json();
-    if (!res.ok) {
-      throw new Error(data.error || 'ক্লাস আপডেট ব্যর্থ হয়েছে');
-    }
-    return data;
   },
 
   async deleteClass(id) {
-    const res = await fetch(`${API_BASE}/classes/${id}`, { method: 'DELETE' });
-    const data = await res.json();
-    if (!res.ok) {
-      throw new Error(data.error || 'ক্লাস ডিলিট ব্যর্থ হয়েছে');
-    }
-    return data;
+    return safeFetch(`/classes/${id}`, { method: 'DELETE' });
   },
 
   // Enrollments
   async getEnrollments(params = {}) {
     const query = new URLSearchParams(params).toString();
-    const res = await fetch(`${API_BASE}/enrollments${query ? `?${query}` : ''}`);
-    return res.json();
+    return safeFetch(`/enrollments${query ? `?${query}` : ''}`, {}, MOCK_ENROLLMENTS);
   },
 
   async enrollStudent(classId, studentId) {
-    const res = await fetch(`${API_BASE}/enrollments`, {
+    return safeFetch('/enrollments', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ classId, studentId }),
     });
-    return res.json();
   },
 
   async cancelEnrollment(id) {
-    const res = await fetch(`${API_BASE}/enrollments/${id}`, { method: 'DELETE' });
-    return res.json();
+    return safeFetch(`/enrollments/${id}`, { method: 'DELETE' });
   },
 
   // Attendance
   async getAttendance(params = {}) {
     const query = new URLSearchParams(params).toString();
-    const res = await fetch(`${API_BASE}/attendance${query ? `?${query}` : ''}`);
-    return res.json();
+    return safeFetch(`/attendance${query ? `?${query}` : ''}`, {}, []);
   },
 
   async saveAttendance(records) {
-    const res = await fetch(`${API_BASE}/attendance`, {
+    return safeFetch('/attendance', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(Array.isArray(records) ? { records } : records),
     });
-    return res.json();
   },
 
   // Invoices & Payments
   async getInvoices(params = {}) {
     const query = new URLSearchParams(params).toString();
-    const res = await fetch(`${API_BASE}/invoices${query ? `?${query}` : ''}`);
-    return res.json();
+    return safeFetch(`/invoices${query ? `?${query}` : ''}`, {}, MOCK_INVOICES);
   },
 
   async createInvoice(invoiceData) {
-    const res = await fetch(`${API_BASE}/invoices`, {
+    return safeFetch('/invoices', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(invoiceData),
     });
-    return res.json();
   },
 
   async processPayment(paymentPayload) {
-    const res = await fetch(`${API_BASE}/payments/process`, {
+    return safeFetch('/payments/process', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(paymentPayload),
     });
-    return res.json();
   },
 
   // Messages
   async getMessages(user1, user2) {
-    let url = `${API_BASE}/messages`;
+    let path = '/messages';
     if (user1 && user2) {
-      url += `?user1=${user1}&user2=${user2}`;
+      path += `?user1=${user1}&user2=${user2}`;
     } else if (user1) {
-      url += `?user1=${user1}`;
+      path += `?user1=${user1}`;
     }
-    const res = await fetch(url);
-    return res.json();
+    return safeFetch(path, {}, []);
   },
 
   async sendMessage(messageData) {
-    const res = await fetch(`${API_BASE}/messages`, {
+    return safeFetch('/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(messageData),
     });
-    return res.json();
   },
 
   async markMessageRead(id) {
-    const res = await fetch(`${API_BASE}/messages/${id}/read`, { method: 'PUT' });
-    return res.json();
+    return safeFetch(`/messages/${id}/read`, { method: 'PUT' });
   },
 
   async markMessageAsRead(id) {
@@ -244,385 +225,341 @@ export const api = {
 
   // Notifications & Phone SMS Alerts
   async getNotifications(userId) {
-    const url = userId ? `${API_BASE}/notifications?userId=${userId}` : `${API_BASE}/notifications`;
-    const res = await fetch(url);
-    return res.json();
+    const path = userId ? `/notifications?userId=${userId}` : `/notifications`;
+    return safeFetch(path, {}, []);
   },
 
   async markNotificationRead(id) {
-    const res = await fetch(`${API_BASE}/notifications/${id}/read`, { method: 'PUT' });
-    return res.json();
+    return safeFetch(`/notifications/${id}/read`, { method: 'PUT' });
   },
 
   async markAllNotificationsRead(userId) {
-    const res = await fetch(`${API_BASE}/notifications/mark-all-read`, {
+    return safeFetch('/notifications/mark-all-read', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId }),
     });
-    return res.json();
   },
 
   async sendClassReminder(classId) {
-    const res = await fetch(`${API_BASE}/notifications/send-class-reminder`, {
+    return safeFetch('/notifications/send-class-reminder', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ classId }),
     });
-    return res.json();
   },
 
   async getSmsLogs() {
-    const res = await fetch(`${API_BASE}/notifications/sms-logs`);
-    return res.json();
+    return safeFetch('/notifications/sms-logs', {}, []);
   },
 
   async sendCustomSms(payload) {
-    const res = await fetch(`${API_BASE}/notifications/send-sms`, {
+    return safeFetch('/notifications/send-sms', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
-    return res.json();
   },
 
   // Assignments & Submissions
   async getAssignments(classId) {
-    const url = classId ? `${API_BASE}/assignments?classId=${classId}` : `${API_BASE}/assignments`;
-    const res = await fetch(url);
-    return res.json();
+    const path = classId ? `/assignments?classId=${classId}` : `/assignments`;
+    return safeFetch(path, {}, []);
   },
 
   async createAssignment(assignmentData) {
-    const res = await fetch(`${API_BASE}/assignments`, {
+    return safeFetch('/assignments', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(assignmentData),
     });
-    return res.json();
   },
 
   async getSubmissions(params = {}) {
     const query = new URLSearchParams(params).toString();
-    const res = await fetch(`${API_BASE}/submissions${query ? `?${query}` : ''}`);
-    return res.json();
+    return safeFetch(`/submissions${query ? `?${query}` : ''}`, {}, []);
   },
 
   async submitAssignment(submissionData) {
-    const res = await fetch(`${API_BASE}/submissions`, {
+    return safeFetch('/submissions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(submissionData),
     });
-    return res.json();
   },
 
   async gradeSubmission(id, score, feedback) {
-    const res = await fetch(`${API_BASE}/submissions/${id}/grade`, {
+    return safeFetch(`/submissions/${id}/grade`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ score, feedback }),
     });
-    return res.json();
   },
 
   // Exam Marks
   async getExamMarks(params = {}) {
     const query = new URLSearchParams(params).toString();
-    const res = await fetch(`${API_BASE}/exam-marks${query ? `?${query}` : ''}`);
-    return res.json();
+    return safeFetch(`/exam-marks${query ? `?${query}` : ''}`, {}, []);
   },
 
   async addExamMark(markData) {
-    const res = await fetch(`${API_BASE}/exam-marks`, {
+    return safeFetch('/exam-marks', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(markData),
     });
-    return res.json();
   },
 
   // Announcements
   async getAnnouncements(classId) {
-    const url = classId ? `${API_BASE}/announcements?classId=${classId}` : `${API_BASE}/announcements`;
-    const res = await fetch(url);
-    return res.json();
+    const path = classId ? `/announcements?classId=${classId}` : `/announcements`;
+    return safeFetch(path, {}, []);
   },
 
   async createAnnouncement(data) {
-    const res = await fetch(`${API_BASE}/announcements`, {
+    return safeFetch('/announcements', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
-    return res.json();
   },
 
-  // Settings (Currency)
+  // Settings
   async getSettings() {
-    const res = await fetch(`${API_BASE}/settings`);
-    return res.json();
+    return safeFetch('/settings', {}, {
+      currencyCode: 'BDT',
+      currencySymbol: '৳',
+      currencyName: 'Bangladeshi Taka',
+      vatPercent: 0
+    });
   },
 
   async updateSettings(settings) {
-    const res = await fetch(`${API_BASE}/settings`, {
+    return safeFetch('/settings', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(settings),
     });
-    return res.json();
   },
 
   // Time Change Requests
   async getTimeRequests(params = {}) {
     const query = new URLSearchParams(params).toString();
-    const res = await fetch(`${API_BASE}/time-requests${query ? `?${query}` : ''}`);
-    return res.json();
+    return safeFetch(`/time-requests${query ? `?${query}` : ''}`, {}, []);
   },
 
   async createTimeRequest(requestData) {
-    const res = await fetch(`${API_BASE}/time-requests`, {
+    return safeFetch('/time-requests', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(requestData),
     });
-    return res.json();
   },
 
   async respondTimeRequest(id, status, teacherResponse = '') {
-    const res = await fetch(`${API_BASE}/time-requests/${id}/respond`, {
+    return safeFetch(`/time-requests/${id}/respond`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status, teacherResponse }),
     });
-    return res.json();
   },
 
   // Gmail OTP Verification
   async sendOtp(email, name = '') {
-    const res = await fetch(`${API_BASE}/auth/send-otp`, {
+    return safeFetch('/auth/send-otp', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, name }),
-    });
-    return res.json();
+    }, { success: true, otp: '123456', message: 'ডেমো ওটিপি সক্রিয়' });
   },
 
   async verifyOtp(email, otp) {
-    const res = await fetch(`${API_BASE}/auth/verify-otp`, {
+    return safeFetch('/auth/verify-otp', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, otp }),
-    });
-    return res.json();
+    }, { success: true });
   },
 
   async getSmtpConfig() {
-    const res = await fetch(`${API_BASE}/settings/smtp`);
-    return res.json();
+    return safeFetch('/settings/smtp', {}, { configured: false, user: '' });
   },
 
   async updateSmtpConfig(config) {
-    const res = await fetch(`${API_BASE}/settings/smtp`, {
+    return safeFetch('/settings/smtp', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(config),
     });
-    return res.json();
   },
 
   // SSLCommerz Gateway
   async initSSLCommerz(invoiceId, customerDetails = {}) {
-    const res = await fetch(`${API_BASE}/payments/sslcommerz/init`, {
+    return safeFetch('/payments/sslcommerz/init', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ invoiceId, ...customerDetails }),
     });
-    return res.json();
   },
 
   async validateSSLCommerz(payload) {
-    const res = await fetch(`${API_BASE}/payments/sslcommerz/validate`, {
+    return safeFetch('/payments/sslcommerz/validate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
-    return res.json();
   },
 
-  // Deductions (Fee reduction when teacher skips)
+  // Deductions
   async getDeductions(params = {}) {
     const query = new URLSearchParams(params).toString();
-    const res = await fetch(`${API_BASE}/deductions${query ? `?${query}` : ''}`);
-    return res.json();
+    return safeFetch(`/deductions${query ? `?${query}` : ''}`, {}, []);
   },
 
   // Monthly Attendance & HW Reports
   async getMonthlyReport(params = {}) {
     const query = new URLSearchParams(params).toString();
-    const res = await fetch(`${API_BASE}/reports/monthly${query ? `?${query}` : ''}`);
-    return res.json();
+    return safeFetch(`/reports/monthly${query ? `?${query}` : ''}`, {}, []);
   },
 
-  // Study Notes & Lecture Materials
+  // Study Notes
   async getStudyNotes(params = {}) {
     const query = new URLSearchParams(params).toString();
-    const res = await fetch(`${API_BASE}/study-notes${query ? `?${query}` : ''}`);
-    return res.json();
+    return safeFetch(`/study-notes${query ? `?${query}` : ''}`, {}, []);
   },
 
   async createStudyNote(data) {
-    const res = await fetch(`${API_BASE}/study-notes`, {
+    return safeFetch('/study-notes', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
-    return res.json();
   },
 
   async deleteStudyNote(id) {
-    const res = await fetch(`${API_BASE}/study-notes/${id}`, { method: 'DELETE' });
-    return res.json();
+    return safeFetch(`/study-notes/${id}`, { method: 'DELETE' });
   },
 
   // Home Tuition Location Tracking
   async getTuitionLocations(params = {}) {
     const query = new URLSearchParams(params).toString();
-    const res = await fetch(`${API_BASE}/tuition-location${query ? `?${query}` : ''}`);
-    return res.json();
+    return safeFetch(`/tuition-location${query ? `?${query}` : ''}`, {}, []);
   },
 
   async updateTuitionLocation(data) {
-    const res = await fetch(`${API_BASE}/tuition-location/update`, {
+    return safeFetch('/tuition-location/update', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
-    return res.json();
   },
 
   async checkInTuitionLocation(data) {
-    const res = await fetch(`${API_BASE}/tuition-location/check-in`, {
+    return safeFetch('/tuition-location/check-in', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
-    return res.json();
   },
 
   async checkOutTuitionLocation(data) {
-    const res = await fetch(`${API_BASE}/tuition-location/check-out`, {
+    return safeFetch('/tuition-location/check-out', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
-    return res.json();
   },
 
-  // Exam Schedules & Timetables
+  // Exam Schedules
   async getExamSchedules(classId) {
-    const url = classId ? `${API_BASE}/exam-schedules?classId=${classId}` : `${API_BASE}/exam-schedules`;
-    const res = await fetch(url);
-    return res.json();
+    const path = classId ? `/exam-schedules?classId=${classId}` : `/exam-schedules`;
+    return safeFetch(path, {}, []);
   },
 
   async createExamSchedule(data) {
-    const res = await fetch(`${API_BASE}/exam-schedules`, {
+    return safeFetch('/exam-schedules', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
-    return res.json();
   },
 
   async updateExamSchedule(id, updates) {
-    const res = await fetch(`${API_BASE}/exam-schedules/${id}`, {
+    return safeFetch(`/exam-schedules/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updates),
     });
-    return res.json();
   },
 
   async deleteExamSchedule(id) {
-    const res = await fetch(`${API_BASE}/exam-schedules/${id}`, { method: 'DELETE' });
-    return res.json();
+    return safeFetch(`/exam-schedules/${id}`, { method: 'DELETE' });
   },
 
-  // Performance Rewards & XP
+  // Rewards
   async getRewards(studentId) {
-    const url = studentId ? `${API_BASE}/rewards?studentId=${studentId}` : `${API_BASE}/rewards`;
-    const res = await fetch(url);
-    return res.json();
+    const path = studentId ? `/rewards?studentId=${studentId}` : `/rewards`;
+    return safeFetch(path, {}, { xp: 350, vouchers: [] });
   },
 
   async claimRewardVoucher(studentId, voucherId) {
-    const res = await fetch(`${API_BASE}/rewards/claim`, {
+    return safeFetch('/rewards/claim', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ studentId, voucherId }),
     });
-    return res.json();
   },
 
   async awardRewardXP(studentId, xpAmount, reason, badge) {
-    const res = await fetch(`${API_BASE}/rewards/award-xp`, {
+    return safeFetch('/rewards/award-xp', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ studentId, xpAmount, reason, badge }),
     });
-    return res.json();
   },
 
-  // Parent Multi-Role Linking
+  // Parent Students
   async getParentStudents(parentId) {
-    const res = await fetch(`${API_BASE}/parents/${parentId}/students`);
-    return res.json();
+    return safeFetch(`/parents/${parentId}/students`, {}, []);
   },
 
   async parentApproveReschedule(requestId, parentId, notes) {
-    const res = await fetch(`${API_BASE}/time-requests/${requestId}/parent-approve`, {
+    return safeFetch(`/time-requests/${requestId}/parent-approve`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ parentId, notes }),
     });
-    return res.json();
   },
 
   // Home Tuition Marketplace & Requests
   async getTuitionRequests(params = {}) {
     const q = new URLSearchParams(params).toString();
-    const res = await fetch(`${API_BASE}/tuition-requests${q ? '?' + q : ''}`);
-    return res.json();
+    return safeFetch(`/tuition-requests${q ? '?' + q : ''}`, {}, MOCK_TUITION_REQUESTS);
   },
 
   async createTuitionRequest(requestData) {
-    const res = await fetch(`${API_BASE}/tuition-requests`, {
+    return safeFetch('/tuition-requests', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(requestData),
     });
-    return res.json();
   },
 
   async respondToTuitionRequest(id, responseData) {
-    const res = await fetch(`${API_BASE}/tuition-requests/${id}/respond`, {
+    return safeFetch(`/tuition-requests/${id}/respond`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(responseData),
     });
-    return res.json();
   },
 
   async getTutors(params = {}) {
     const q = new URLSearchParams(params).toString();
-    const res = await fetch(`${API_BASE}/tutors${q ? '?' + q : ''}`);
-    return res.json();
+    return safeFetch(`/tutors${q ? '?' + q : ''}`, {}, MOCK_TUTORS);
   },
 
   // Reset database demo data
   async resetData() {
-    const res = await fetch(`${API_BASE}/reset-data`, { method: 'POST' });
-    return res.json();
+    return safeFetch('/reset-data', { method: 'POST' });
   }
 };

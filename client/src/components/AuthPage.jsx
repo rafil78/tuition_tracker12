@@ -2,13 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { 
   GraduationCap, Mail, Lock, User, Phone, BookOpen, 
   CheckCircle2, ArrowRight, ShieldCheck, Sparkles, Copy, 
-  RotateCw, AlertCircle, ExternalLink, ArrowLeft, Send, Check, Flame
+  RotateCw, AlertCircle, ExternalLink, ArrowLeft, Send, Check, Flame, Server
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { api } from '../api';
 import { useAuth } from '../context/AuthContext';
 import { signInWithGoogle, isFirebaseConfigured } from '../firebase';
 import FirebaseSetupModal from './FirebaseSetupModal';
+import ServerConfigModal from './ServerConfigModal';
 import { autoBackupRecord } from '../firestoreSync';
 
 export default function AuthPage({ onGoToDashboard }) {
@@ -99,6 +100,7 @@ export default function AuthPage({ onGoToDashboard }) {
   };
 
   const [showFirebaseModal, setShowFirebaseModal] = useState(false);
+  const [showServerModal, setShowServerModal] = useState(false);
 
   const handleGoogleSignIn = async () => {
     setError('');
@@ -384,6 +386,16 @@ export default function AuthPage({ onGoToDashboard }) {
             <span className={`w-2 h-2 rounded-full ${smtpConfig.configured ? 'bg-emerald-400' : 'bg-amber-400'} animate-pulse`} />
             <span className="hidden sm:inline">ইমেইল সেটিংস (SMTP)</span>
             <span className="sm:hidden">SMTP</span>
+          </button>
+
+          <button
+            onClick={() => setShowServerModal(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-200 rounded-xl text-xs font-bold transition-all border border-indigo-400/30"
+            title="Configure Server or Offline Mode"
+          >
+            <Server className="w-3.5 h-3.5 text-indigo-400" />
+            <span className="hidden sm:inline">সার্ভার সেটিংস</span>
+            <span className="sm:hidden">Server</span>
           </button>
 
           {currentUser && (
@@ -1196,6 +1208,12 @@ export default function AuthPage({ onGoToDashboard }) {
       <FirebaseSetupModal
         isOpen={showFirebaseModal}
         onClose={() => setShowFirebaseModal(false)}
+      />
+
+      {/* Server Config Modal */}
+      <ServerConfigModal
+        isOpen={showServerModal}
+        onClose={() => setShowServerModal(false)}
       />
 
       {/* Footer */}
