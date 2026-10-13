@@ -1,5 +1,19 @@
-const API_BASE = '/api';
+// Base API URL configuration - supports Web, Native Android APK & Cloud backend
+export const getApiBase = () => {
+  if (typeof window !== 'undefined') {
+    const savedUrl = localStorage.getItem('edutrack_server_url');
+    if (savedUrl) {
+      return savedUrl.replace(/\/$/, '') + '/api';
+    }
+    // When running inside native Android WebView / Capacitor without host
+    if (window.location.protocol === 'file:' || window.location.origin.includes('capacitor://')) {
+      return 'https://tuition-tracker12.onrender.com/api';
+    }
+  }
+  return '/api';
+};
 
+const API_BASE = getApiBase();
 export const api = {
   // Stats
   async getStats() {
