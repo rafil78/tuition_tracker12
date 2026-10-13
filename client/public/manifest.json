@@ -1,5 +1,5 @@
 {
-  "name": "EduTrack — টিউশন ম্যানেজার ও হোম টিউটর",
+  "name": "EduTrack",
   "short_name": "EduTrack",
   "description": "স্মার্ট টিউশন ট্র্যাকার, ফি ম্যানেজমেন্ট ও হোম টিউটর পোর্টাল",
   "start_url": "/",
@@ -20,5 +20,6 @@
       "type": "image/png",
       "purpose": "any maskable"
     }
-  ]
+  ],
+  "id": "ET"
 }
