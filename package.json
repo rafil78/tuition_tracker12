@@ -10,7 +10,7 @@
     "dev": "node dev-runner.js",
     "firebase:sync": "node -e \"fetch('http://localhost:5000/api/firebase/sync', {method:'POST'}).then(r=>r.json()).then(console.log)\"",
     "build": "npm --prefix client run build",
-    "sync:android": "npm --prefix client run build && npm --prefix client exec cap sync android"
+    "sync:android": "npm --prefix client run build && cd client && npx cap sync android"
   },
   "keywords": [
     "tuition",

@@ -193,15 +193,19 @@ export default function ServerConfigModal({ isOpen, onClose }) {
             <div className="grid grid-cols-2 gap-2 text-[11px] bg-white/80 p-2.5 rounded-lg border border-amber-200/60">
               <div>
                 <span className="text-slate-500 block text-[10px]">অপারেটিং মোড:</span>
-                <span className="font-semibold text-slate-800 font-mono">Firebase-Connected</span>
+                <span className="font-semibold text-slate-800 font-mono">
+                  {api.isOffline() ? 'Offline-First (Mobile)' : 'Server / Cloud Sync'}
+                </span>
               </div>
               <div>
                 <span className="text-slate-500 block text-[10px]">অফলাইন মোড:</span>
-                <span className="font-bold text-rose-600">নিষ্ক্রিয় (Disabled)</span>
+                <span className={`font-bold ${api.isOffline() ? 'text-emerald-600' : 'text-slate-600'}`}>
+                  {api.isOffline() ? 'সক্রিয় (Auto-Offline)' : 'স্ট্যান্ডবাই'}
+                </span>
               </div>
               <div>
                 <span className="text-slate-500 block text-[10px]">Project ID:</span>
-                <span className="font-mono text-slate-700">{firebaseStatus?.projectId || 'edutrack-app'}</span>
+                <span className="font-mono text-slate-700">{firebaseStatus?.projectId || 'tuition-12'}</span>
               </div>
               <div>
                 <span className="text-slate-500 block text-[10px]">Cloud Database:</span>
@@ -220,12 +224,55 @@ export default function ServerConfigModal({ isOpen, onClose }) {
             </button>
           </div>
 
+          {/* Quick Connection Presets */}
+          <div className="space-y-1.5">
+            <span className="text-[11px] font-bold text-slate-600">কানেকশন মোড প্রিসেট:</span>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setServerUrlState('offline');
+                  setTestStatus('success');
+                  setTestMsg('⚡ অফলাইন লোকাল মোড নির্বাচিত হয়েছে (কোনো সার্ভার লাগবে না)।');
+                }}
+                className={`p-2 rounded-xl border text-left text-xs transition ${
+                  serverUrl === 'offline' || api.isOffline()
+                    ? 'border-emerald-500 bg-emerald-50/70 text-emerald-900 font-bold'
+                    : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
+                }`}
+              >
+                <div className="flex items-center gap-1.5 font-bold text-[11px]">
+                  <span>⚡ অফলাইন মোড</span>
+                </div>
+                <p className="text-[10px] text-slate-500 mt-0.5">মোবাইলে কোনো সার্ভার বা ওয়াইফাই ছাড়াই সব চলবে</p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setServerUrlState('http://192.168.1.5:5000');
+                  handleTestConnection('http://192.168.1.5:5000');
+                }}
+                className={`p-2 rounded-xl border text-left text-xs transition ${
+                  serverUrl.includes('192.168.')
+                    ? 'border-indigo-500 bg-indigo-50/70 text-indigo-900 font-bold'
+                    : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
+                }`}
+              >
+                <div className="flex items-center gap-1.5 font-bold text-[11px]">
+                  <span>📡 ওয়াই-ফাই পিসি সার্ভার</span>
+                </div>
+                <p className="text-[10px] text-slate-500 mt-0.5">পিসির লোকাল এক্সপ্রেস সার্ভার (Port 5000)</p>
+              </button>
+            </div>
+          </div>
+
           {/* Backend Server URL Config */}
           <div className="space-y-2 border border-slate-200 p-3.5 rounded-xl bg-slate-50/50">
             <div className="flex items-center justify-between">
               <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
                 <Server className="w-3.5 h-3.5 text-indigo-600" />
-                <span>ব্যাকএন্ড সার্ভার API URL</span>
+                <span>কাস্টম ব্যাকএন্ড সার্ভার API URL</span>
               </label>
               <span className="text-[10px] text-slate-500 font-mono">Port: 5000</span>
             </div>

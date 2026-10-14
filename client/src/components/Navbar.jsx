@@ -93,15 +93,29 @@ export default function Navbar({ onOpenAuthPage, onOpenLocationModal, unreadMess
         {/* Center / Right controls */}
         <div className="flex items-center gap-2">
           
-          {/* Firebase Connected Mode Pill */}
+          {/* Connection Mode Pill */}
           <button
             onClick={() => setShowServerModal(true)}
-            title={lang === 'bn' ? '🔥 ফায়ারবেস কানেক্টেড মোড সক্রিয় (অফলাইন মোড নিষ্ক্রিয়)' : 'Firebase Connected Mode Active (Offline Mode Disabled)'}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-amber-300/80 bg-gradient-to-r from-amber-50 to-orange-50 text-amber-900 hover:from-amber-100 hover:to-orange-100 text-xs font-bold transition shadow-sm"
+            title={
+              isOffline
+                ? (lang === 'bn' ? '⚡ অফলাইন ডাটাবেস সক্রিয় (মোবাইল ও অফলাইন ফ্রেন্ডলি)' : '⚡ Offline-First Mode Active (Mobile & Offline Ready)')
+                : (lang === 'bn' ? '🌐 ব্যাকএন্ড সার্ভার সক্রিয়' : '🌐 Backend Server Live')
+            }
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-bold transition shadow-sm ${
+              isOffline
+                ? 'border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
+                : 'border-amber-300/80 bg-gradient-to-r from-amber-50 to-orange-50 text-amber-900 hover:from-amber-100 hover:to-orange-100'
+            }`}
           >
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <Flame className="w-3.5 h-3.5 text-amber-600 fill-amber-500/30" />
-            <span className="hidden sm:inline font-mono tracking-tight text-[11px]">Firebase Live</span>
+            <span className={`w-2 h-2 rounded-full ${isOffline ? 'bg-emerald-600' : 'bg-emerald-500 animate-pulse'}`} />
+            {isOffline ? (
+              <HardDrive className="w-3.5 h-3.5 text-emerald-600" />
+            ) : (
+              <Flame className="w-3.5 h-3.5 text-amber-600 fill-amber-500/30" />
+            )}
+            <span className="hidden sm:inline font-mono tracking-tight text-[11px]">
+              {isOffline ? (lang === 'bn' ? 'অফলাইন মোড' : 'Offline Mode') : 'Server Live'}
+            </span>
           </button>
 
           {/* Language Switcher Button */}

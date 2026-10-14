@@ -37,19 +37,19 @@ export default function OfflineBanner({ onOpenServerModal }) {
           </div>
           <div>
             <div className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-rose-400 animate-ping" />
-              <h4 className="text-xs font-bold text-white">ক্লাউড সংযোগ বিচ্ছিন্ন</h4>
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <h4 className="text-xs font-bold text-white">অফলাইন মোড সক্রিয় (Offline-First)</h4>
             </div>
             <p className="text-[11px] text-slate-300 mt-1 leading-snug">
-              অ্যাপটি শুধুমাত্র <strong>Google Firebase Connected Mode</strong>-এ কাজ করে (অফলাইন মোড নিষ্ক্রিয়)। ইন্টারনেট সংযোগ চেক করুন।
+              মোবাইলের নিজস্ব লোকাল স্টোরেজ সক্রিয়। কোনো ইন্টারনেট বা সার্ভার ছাড়াই টিউশন, ব্যাচ ও পেমেন্ট 0ms ল্যাগে কাজ করবে।
             </p>
             {onOpenServerModal && (
               <button
                 type="button"
                 onClick={onOpenServerModal}
-                className="mt-2 text-[10px] text-amber-300 hover:text-amber-200 font-semibold inline-flex items-center gap-1 hover:underline"
+                className="mt-2 text-[10px] text-emerald-300 hover:text-emerald-200 font-semibold inline-flex items-center gap-1 hover:underline"
               >
-                <span>ফায়ারবেস ক্লাউড স্ট্যাটাস চেক করুন</span>
+                <span>সার্ভার সেটিংস কনফিগার করুন</span>
                 <ArrowUpRight className="w-3 h-3" />
               </button>
             )}
