@@ -49,16 +49,42 @@ A full-stack Tuition Tracker application with a persistent database, interactive
   - **Final Payable Amount**: `৳ 3,150`
 - The Payment Gateway charges the exact discounted amount.
 
+### 7. ⚡ True Offline-First Architecture & Offline App Support
+- **Complete Client-Side Offline Database (`offlineDb.js`)**:
+  - Full relational dataset stored persistently in browser/device `localStorage`.
+  - Zero-latency responses (0ms lag, no network timeouts, no failed spinners).
+  - All operations persist locally: add/edit/delete classes, mark attendance, generate invoices, record payments, post homework, submit assignments, enter exam grades, send messages, and submit reschedule requests.
+- **PWA Service Worker (`sw.js`) & Caching**:
+  - App shell and static assets are cached automatically so the app opens and runs instantly without internet.
+  - Installable as a standalone app on desktop and mobile home screen.
+- **Live Connection Mode Selector**:
+  - **⚡ Offline Mode**: 100% device-only storage, zero network dependency.
+  - **📡 Local Wi-Fi PC Server**: `http://192.168.1.5:5000`
+  - **☁️ Cloud Server**: Render or custom API backend.
+- **Database Backup & Restore**:
+  - **Download Backup**: Export entire database as a `.json` backup file.
+  - **Restore Backup**: 1-click restore from any exported backup file.
+  - **Reset Demo**: Restore default realistic educational dataset at any time.
+
 ---
 
 ## 🏗️ Project Architecture
 
 ```
 app/
-├── client/                     # React Frontend (Vite + Tailwind CSS)
+├── client/                     # React Frontend (Vite + Tailwind CSS + PWA)
+│   ├── public/
+│   │   ├── sw.js               # Service Worker for offline PWA asset caching
+│   │   ├── manifest.json       # PWA Web App Manifest
+│   │   ├── icon-192.png
+│   │   └── icon-512.png
 │   ├── src/
+│   │   ├── offlineDb.js        # Offline-First Persistent Database Engine
+│   │   ├── api.js              # Intelligent API client (routes to offlineDb or backend)
 │   │   ├── components/
-│   │   │   ├── Navbar.jsx              # Navigation, Currency pill, & Persona switcher
+│   │   │   ├── Navbar.jsx              # Navigation, Offline/Server pill, Currency & Persona switcher
+│   │   │   ├── ServerConfigModal.jsx   # Offline/Server switcher, DB stats, Backup Export/Import
+│   │   │   ├── OfflineBanner.jsx       # Floating offline mode active alert & shortcuts
 │   │   │   ├── Sidebar.jsx             # Left sidebar navigation
 │   │   │   ├── DashboardOverview.jsx   # Metrics, alerts, and quick timetable
 │   │   │   ├── InvoicesView.jsx        # Fee tracking, discount badges, & invoices table
@@ -77,9 +103,8 @@ app/
 │   │   │   └── StudentsView.jsx        # Student profiles & remove student actions
 │   │   ├── context/
 │   │   │   └── AuthContext.jsx         # Authentication, Currency settings, & formatMoney
-│   │   ├── api.js                      # REST API client
 │   │   ├── App.jsx                     # Root application coordinator
-│   │   └── main.jsx                    # React entrypoint
+│   │   └── main.jsx                    # React entrypoint & Service Worker registration
 │   ├── index.html
 │   ├── vite.config.js
 │   └── tailwind.config.js
@@ -98,10 +123,25 @@ app/
 
 ## 🚀 Running the App
 
-The server is currently running and serves both the API and client at:
-👉 **[http://localhost:5000](http://localhost:5000)**
-
-To run or restart the server:
+### 1. ⚡ Run Pure Offline App (No Backend Server Needed)
 ```bash
-node server/server.js
+npm run offline
+```
+Or:
+```bash
+npm --prefix client run dev
+```
+Open **[http://localhost:3000](http://localhost:3000)** in your browser. All features work immediately with zero server or internet requirements.
+
+### 2. 🌐 Run Full Stack (Frontend + Express Backend)
+```bash
+npm run dev
+```
+Or start each service separately:
+- Backend: `npm run server` (runs on `http://localhost:5000`)
+- Frontend: `npm run client` (runs on `http://localhost:3000`)
+
+### 3. 📱 Sync Android Native App (Capacitor)
+```bash
+npm run sync:android
 ```

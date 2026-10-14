@@ -15,8 +15,10 @@ const serverProcess = spawn('node', ['server/server.js'], {
   env: { ...process.env, PORT: '5000' }
 });
 
+const npmCmd = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+
 // Start client Vite dev server
-const clientProcess = spawn('npm', ['run', 'dev'], {
+const clientProcess = spawn(npmCmd, ['run', 'dev'], {
   cwd: path.join(__dirname, 'client'),
   stdio: 'inherit',
   shell: true

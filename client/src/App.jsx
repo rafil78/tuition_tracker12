@@ -23,12 +23,15 @@ import AdminDashboardView from './components/AdminDashboardView';
 import AuthPage from './components/AuthPage';
 import FindTutorView from './components/FindTutorView';
 import TuitionJobsView from './components/TuitionJobsView';
+import OfflineBanner from './components/OfflineBanner';
+import ServerConfigModal from './components/ServerConfigModal';
 
 export default function App() {
   const { currentUser, isAdmin, isTeacher, isParent, isStudent, refreshKey, triggerRefresh } = useAuth();
   const [currentTab, setCurrentTab] = useState('overview');
   const [showFullAuthPage, setShowFullAuthPage] = useState(false);
   const [showLocationModal, setShowLocationModal] = useState(false);
+  const [showServerModal, setShowServerModal] = useState(false);
   const [reportStudentId, setReportStudentId] = useState(null);
   const [reportClassId, setReportClassId] = useState(null);
   const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
@@ -311,6 +314,15 @@ export default function App() {
           onOpenChat={() => setCurrentTab('messages')}
         />
       )}
+
+      {/* Floating Offline Mode Indicator Banner */}
+      <OfflineBanner onOpenServerModal={() => setShowServerModal(true)} />
+
+      {/* Global Server & Offline Mode Settings Modal */}
+      <ServerConfigModal
+        isOpen={showServerModal}
+        onClose={() => setShowServerModal(false)}
+      />
     </div>
   );
 }

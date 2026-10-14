@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { 
   GraduationCap, Bell, RotateCcw, ChevronDown, Check, MessageSquare,
-  UserCheck, Shield, ExternalLink, Coins, LogIn, UserPlus, LogOut, Navigation, Flame, Globe
+  UserCheck, Shield, ExternalLink, Coins, LogIn, UserPlus, LogOut, Navigation, Flame, Globe,
+  HardDrive, Server
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../api';
 import CurrencyModal from './CurrencyModal';
 import AuthModal from './AuthModal';
 import FirebaseSetupModal from './FirebaseSetupModal';
+import ServerConfigModal from './ServerConfigModal';
 import NotificationDropdown from './NotificationDropdown';
 import { isFirebaseConfigured } from '../firebase';
 
@@ -24,7 +26,23 @@ export default function Navbar({ onOpenAuthPage, onOpenLocationModal, unreadMess
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
   const [showCurrencyModal, setShowCurrencyModal] = useState(false);
   const [showFirebaseModal, setShowFirebaseModal] = useState(false);
+  const [showServerModal, setShowServerModal] = useState(false);
+  const [isOffline, setIsOffline] = useState(() => api.isOffline());
   const [resetting, setResetting] = useState(false);
+
+  useEffect(() => {
+    const checkOffline = () => {
+      setIsOffline(api.isOffline());
+    };
+    window.addEventListener('online', checkOffline);
+    window.addEventListener('offline', checkOffline);
+    window.addEventListener('edutrack_connection_mode_changed', checkOffline);
+    return () => {
+      window.removeEventListener('online', checkOffline);
+      window.removeEventListener('offline', checkOffline);
+      window.removeEventListener('edutrack_connection_mode_changed', checkOffline);
+    };
+  }, []);
 
   // Poll for phone/system notifications count
   useEffect(() => {
@@ -75,6 +93,32 @@ export default function Navbar({ onOpenAuthPage, onOpenLocationModal, unreadMess
         {/* Center / Right controls */}
         <div className="flex items-center gap-2">
           
+          {/* Offline / Server Mode Pill */}
+          <button
+            onClick={() => setShowServerModal(true)}
+            title={isOffline 
+              ? (lang === 'bn' ? '⚡ অফলাইন মোড সক্রিয় (ডিভাইস মেমোরিতে সেভ হচ্ছে)' : 'Offline Mode Active') 
+              : (lang === 'bn' ? 'সার্ভার সংযোগ সক্রিয়' : 'Server Connected')}
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-bold transition shadow-sm ${
+              isOffline
+                ? 'border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
+                : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+            }`}
+          >
+            {isOffline ? (
+              <>
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <HardDrive className="w-3.5 h-3.5 text-emerald-600" />
+                <span className="hidden sm:inline">{lang === 'bn' ? 'অফলাইন' : 'Offline'}</span>
+              </>
+            ) : (
+              <>
+                <Server className="w-3.5 h-3.5 text-indigo-600" />
+                <span className="hidden sm:inline">{lang === 'bn' ? 'সার্ভার' : 'Server'}</span>
+              </>
+            )}
+          </button>
+
           {/* Language Switcher Button */}
           <button
             onClick={toggleLanguage}
@@ -288,6 +332,22 @@ export default function Navbar({ onOpenAuthPage, onOpenLocationModal, unreadMess
                         <span>Modal Login</span>
                       </button>
                     </div>
+
+                    <button
+                      onClick={() => {
+                        setShowServerModal(true);
+                        setDropdownOpen(false);
+                      }}
+                      className="w-full text-left px-2 py-1.5 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-100 flex items-center justify-between transition"
+                    >
+                      <span className="flex items-center gap-1.5">
+                        <HardDrive className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>{lang === 'bn' ? 'অফলাইন ও সার্ভার মোড' : 'Server & Offline Mode'}</span>
+                      </span>
+                      <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded ${isOffline ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'}`}>
+                        {isOffline ? 'Offline' : 'Server'}
+                      </span>
+                    </button>
                   </div>
 
                   {/* 1-Click Persona Switcher */}
@@ -367,6 +427,11 @@ export default function Navbar({ onOpenAuthPage, onOpenLocationModal, unreadMess
       <FirebaseSetupModal
         isOpen={showFirebaseModal}
         onClose={() => setShowFirebaseModal(false)}
+      />
+
+      <ServerConfigModal
+        isOpen={showServerModal}
+        onClose={() => setShowServerModal(false)}
       />
     </header>
   );
