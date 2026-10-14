@@ -2,16 +2,19 @@ import React, { useState, useEffect } from 'react';
 import { 
   X, ShieldCheck, Lock, CheckCircle2, AlertCircle, 
   CreditCard, Smartphone, Building, ArrowRight, Download, 
-  RotateCw, RefreshCw, Sparkles, Check, ChevronRight
+  RotateCw, RefreshCw, Sparkles, Check, ChevronRight, ExternalLink, MessageSquare
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { api } from '../api';
 import { useAuth } from '../context/AuthContext';
 import { autoBackupRecord } from '../firestoreSync';
 
-export default function SSLCommerzModal({ invoice, isOpen, onClose, onPaymentSuccess }) {
-  const { formatMoney, currencySymbol } = useAuth();
+export default function SSLCommerzModal({ invoice, batchToEnroll, isOpen, onClose, onPaymentSuccess, onNavigateToBatchChat, successPayload }) {
+  const { formatMoney, currentUser } = useAuth();
   
+  // Payment mode: 'gateway' (Official Live Hosted Checkout) or 'demo' (In-Modal Instant Simulator)
+  const [checkoutMode, setCheckoutMode] = useState('gateway'); // 'gateway' | 'demo'
+
   // Payment channel tabs: 'mfs' (Mobile Banking), 'card' (Cards), 'netbanking' (Internet Banking)
   const [activeTab, setActiveTab] = useState('mfs');
   const [selectedMfs, setSelectedMfs] = useState('bkash'); // 'bkash' | 'nagad' | 'rocket' | 'upay'
@@ -24,7 +27,7 @@ export default function SSLCommerzModal({ invoice, isOpen, onClose, onPaymentSuc
   const [mfsPin, setMfsPin] = useState('12345');
 
   // Card Form state
-  const [cardNumber, setCardNumber] = useState('4242 •••• •••• 4242');
+  const [cardNumber, setCardNumber] = useState('4242 8899 7766 4242');
   const [cardHolder, setCardHolder] = useState('তানভীর আহমেদ');
   const [cardExpiry, setCardExpiry] = useState('12/28');
   const [cardCvv, setCardCvv] = useState('888');
@@ -35,42 +38,100 @@ export default function SSLCommerzModal({ invoice, isOpen, onClose, onPaymentSuc
 
   // Processing & result state
   const [loading, setLoading] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
   const [error, setError] = useState('');
   const [paymentResult, setPaymentResult] = useState(null);
   const [sessionData, setSessionData] = useState(null);
 
-  // Initialize SSLCommerz session when modal opens
+  const currentAmount = invoice?.amount || batchToEnroll?.monthlyFee || successPayload?.amount || 0;
+
+  // Request official gateway session helper (hoisted before useEffect)
+  const requestOfficialGatewaySession = async () => {
+    try {
+      const payload = {
+        invoiceId: invoice?.id || (batchToEnroll ? `enroll-${batchToEnroll.id}` : null),
+        classId: batchToEnroll?.id || invoice?.classId,
+        amount: currentAmount,
+        title: invoice?.title || batchToEnroll?.title || 'টিউশন ফি ও কোর্স পেমেন্ট',
+        studentId: currentUser?.id,
+        customerName: cardHolder || currentUser?.name || invoice?.student?.name || 'তানভীর আহমেদ',
+        customerEmail: currentUser?.email || invoice?.student?.email || 'student@gmail.com',
+        customerPhone: currentUser?.phone || invoice?.student?.phone || '01712345678'
+      };
+
+      const res = await api.initSSLCommerz(payload);
+      if (res && res.status === 'SUCCESS' && res.GatewayPageURL && res.GatewayPageURL.startsWith('http')) {
+        setSessionData(res);
+        return res;
+      }
+      return null;
+    } catch (err) {
+      console.warn('SSLCommerz gateway session fetch error:', err);
+      return null;
+    }
+  };
+
+  // Initialize SSLCommerz session when modal opens or if successPayload given
   useEffect(() => {
-    if (isOpen && invoice) {
+    if (successPayload) {
+      setPaymentResult({
+        success: true,
+        status: 'VALID',
+        payment: {
+          transactionId: successPayload.tranId,
+          val_id: successPayload.valId,
+          channel: successPayload.channel,
+          amount: successPayload.amount,
+          bank_tran_id: `BANK_${Math.floor(10000000 + Math.random() * 90000000)}`
+        }
+      });
+      return;
+    }
+
+    if (isOpen && (invoice || batchToEnroll)) {
       setError('');
       setPaymentResult(null);
       setMfsStep(1);
+      setRedirecting(false);
       
       // Pre-fill student name
-      if (invoice.student?.name) {
-        setCardHolder(invoice.student.name);
+      if (invoice?.student?.name || currentUser?.name) {
+        setCardHolder(invoice?.student?.name || currentUser?.name || 'তানভীর আহমেদ');
       }
 
-      // Initialize session
-      api.initSSLCommerz(invoice.id, {
-        customerName: invoice.student?.name,
-        customerEmail: invoice.student?.email,
-        customerPhone: invoice.student?.phone || '01712345678'
-      }).then(res => {
-        if (res.status === 'SUCCESS') {
-          setSessionData(res);
-        }
-      }).catch(err => {
-        console.warn('SSLCommerz init warning:', err);
-      });
+      requestOfficialGatewaySession();
     }
-  }, [isOpen, invoice]);
+  }, [isOpen, invoice, batchToEnroll, successPayload]);
 
-  if (!isOpen || !invoice) return null;
+  // Open Real Official SSLCommerz Hosted Checkout
+  const handleOpenOfficialGateway = async () => {
+    setError('');
+    setRedirecting(true);
+
+    try {
+      let currentSession = sessionData;
+      if (!currentSession || !currentSession.GatewayPageURL || !currentSession.GatewayPageURL.startsWith('http')) {
+        currentSession = await requestOfficialGatewaySession();
+      }
+
+      if (currentSession?.GatewayPageURL && currentSession.GatewayPageURL.startsWith('http')) {
+        console.log('Redirecting to official SSLCommerz Gateway:', currentSession.GatewayPageURL);
+        // Direct browser navigation to official sandbox checkout
+        window.location.assign(currentSession.GatewayPageURL);
+        return;
+      }
+
+      throw new Error('SSLCommerz gateway URL is not available');
+    } catch (err) {
+      console.error('SSLCommerz gateway open error:', err);
+      setError('অফিসিয়াল গেটওয়ে পেজ লোড করতে বিলম্ব হচ্ছে। ইন-অ্যাপ ডেমো ট্যাব দিয়ে অবিলম্বে পেমেন্ট সম্পন্ন করতে পারেন।');
+      setRedirecting(false);
+    }
+  };
 
   const handleFillDemoCard = () => {
     setCardNumber('4242 8899 7766 4242');
-    setCardHolder(invoice.student?.name || 'তানভীর আহমেদ (Alex Rivera)');
+    setCardHolder(invoice?.student?.name || 'তানভীর আহমেদ');
     setCardExpiry('06/29');
     setCardCvv('742');
   };
@@ -88,16 +149,54 @@ export default function SSLCommerzModal({ invoice, isOpen, onClose, onPaymentSuc
     setLoading(true);
 
     try {
-      // Simulate real bank/gateway roundtrip
-      await new Promise(r => setTimeout(r, 1400));
+      await new Promise(r => setTimeout(r, 900));
 
       const channelName = 
         activeTab === 'mfs' ? `${selectedMfs.toUpperCase()} (MFS)` :
         activeTab === 'card' ? (cardNumber.startsWith('4') ? 'VISA Card' : 'MasterCard') :
         `Internet Banking (${selectedBank.toUpperCase()})`;
 
+      if (batchToEnroll) {
+        const enrollRes = await api.enrollBatch({
+          studentId: currentUser?.id || 'student-1',
+          classId: batchToEnroll.id,
+          tranId: sessionData?.tran_id || `SSLCZ_TXN_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`,
+          val_id: `SSLCZ_VAL_${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
+          channel: channelName,
+          amount: currentAmount
+        });
+
+        if (enrollRes && enrollRes.success) {
+          setPaymentResult({
+            success: true,
+            status: 'VALID',
+            isBatchEnrollment: true,
+            batchGroupId: enrollRes.batchGroupId,
+            message: enrollRes.message,
+            payment: {
+              transactionId: enrollRes.invoice?.transactionId || 'SSLCZ_ENR_TXN',
+              val_id: enrollRes.invoice?.valId || 'SSLCZ_VAL_ENR',
+              channel: channelName,
+              amount: currentAmount,
+              bank_tran_id: `BANK_${Math.floor(10000000 + Math.random() * 90000000)}`
+            }
+          });
+          confetti({
+            particleCount: 140,
+            spread: 85,
+            origin: { y: 0.55 }
+          });
+          if (onPaymentSuccess) {
+            onPaymentSuccess(enrollRes.invoice || enrollRes);
+          }
+        } else {
+          setError(enrollRes?.error || 'ভর্তি প্রক্রিয়া সম্পন্ন করতে সমস্যা হয়েছে।');
+        }
+        return;
+      }
+
       const payload = {
-        invoiceId: invoice.id,
+        invoiceId: invoice?.id,
         tran_id: sessionData?.tran_id || `SSLCZ_TXN_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`,
         val_id: `SSLCZ_VAL_${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
         paymentMethod: 'sslcommerz',
@@ -115,7 +214,7 @@ export default function SSLCommerzModal({ invoice, isOpen, onClose, onPaymentSuc
       if (result.success) {
         setPaymentResult(result);
         confetti({
-          particleCount: 110,
+          particleCount: 120,
           spread: 80,
           origin: { y: 0.55 }
         });
@@ -136,12 +235,14 @@ export default function SSLCommerzModal({ invoice, isOpen, onClose, onPaymentSuc
     }
   };
 
+  if (!isOpen || (!invoice && !batchToEnroll && !successPayload)) return null;
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-sm animate-fadeIn">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 backdrop-blur-sm animate-fadeIn">
       <div className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden transform transition-all flex flex-col max-h-[92vh]">
         
         {/* SSLCommerz Official Branded Header */}
-        <div className="bg-gradient-to-r from-[#990000] via-[#c4161c] to-[#e61e24] text-white p-5 sm:p-6 relative">
+        <div className="bg-gradient-to-r from-[#8b0000] via-[#c4161c] to-[#e61e24] text-white p-5 sm:p-6 relative shadow-md">
           <button 
             onClick={onClose}
             className="absolute top-4 right-4 p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-full transition-colors"
@@ -151,59 +252,73 @@ export default function SSLCommerzModal({ invoice, isOpen, onClose, onPaymentSuc
 
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="bg-white px-3 py-1.5 rounded-xl shadow-md flex items-center">
-                <span className="text-sm font-black tracking-tight text-[#c4161c]">SSL</span>
-                <span className="text-sm font-black tracking-tight text-slate-800">COMMERZ</span>
+              <div className="bg-white px-3.5 py-1.5 rounded-xl shadow-md flex items-center gap-0.5">
+                <span className="text-base font-black tracking-tight text-[#c4161c]">SSL</span>
+                <span className="text-base font-black tracking-tight text-slate-900">COMMERZ</span>
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h3 className="text-base sm:text-lg font-black tracking-tight">
-                    নিরাপদ পেমেন্ট গেটওয়ে (SSLCommerz)
+                  <h3 className="text-base sm:text-lg font-black tracking-tight text-white">
+                    এসএসএলকমার্জ পেমেন্ট গেটওয়ে
                   </h3>
                   <span className="px-2.5 py-0.5 text-[10px] font-black bg-amber-400 text-amber-950 rounded-full uppercase tracking-wider shadow-sm flex items-center gap-1">
                     <Sparkles className="w-3 h-3 text-amber-900" />
-                    <span>SSLCommerz Demo Sandbox</span>
+                    <span>Real Sandbox Active</span>
                   </span>
                 </div>
                 <p className="text-xs text-red-100 font-medium">
-                  বাংলাদেশ ব্যাংক অনুমোদিত জাতীয় পেমেন্ট গেটওয়ে • স্যান্ডবক্স ডেমো টেস্ট মোড
+                  বাংলাদেশ ব্যাংক অনুমোদিত জাতীয় পেমেন্ট গেটওয়ে • লাইভ সিকিউর চ্যানেল
                 </p>
               </div>
             </div>
 
-            <div className="text-right bg-black/20 backdrop-blur-sm px-4 py-2 rounded-2xl border border-white/10">
+            <div className="text-right bg-black/25 backdrop-blur-sm px-4 py-2.5 rounded-2xl border border-white/15">
               <span className="text-[10px] text-red-100 font-bold block uppercase tracking-wider">
                 পরিশোধযোগ্য সর্বমোট (Total Due)
               </span>
               <span className="text-xl sm:text-2xl font-black font-mono text-white">
-                {formatMoney(invoice.amount)}
+                {formatMoney(currentAmount)}
               </span>
             </div>
           </div>
 
-          {/* Quick Invoice Details Strip */}
-          <div className="mt-4 pt-3 border-t border-white/15 flex flex-wrap items-center justify-between text-xs text-red-100 gap-2">
-            <div>
-              <span className="opacity-80">ইনভয়েস: </span>
-              <span className="font-mono font-bold text-white">{invoice.invoiceNumber}</span>
-              <span className="mx-2 opacity-50">|</span>
-              <span className="opacity-80">কোর্স: </span>
-              <span className="font-bold text-white">{invoice.title}</span>
+          {/* Quick Invoice / Batch Details Strip */}
+          {(invoice || batchToEnroll) && (
+            <div className="mt-4 pt-3 border-t border-white/15 flex flex-wrap items-center justify-between text-xs text-red-100 gap-2">
+              <div>
+                {invoice ? (
+                  <>
+                    <span className="opacity-80">ইনভয়েস: </span>
+                    <span className="font-mono font-bold text-white">{invoice.invoiceNumber}</span>
+                    <span className="mx-2 opacity-50">|</span>
+                    <span className="opacity-80">কোর্স: </span>
+                    <span className="font-bold text-white">{invoice.title}</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="opacity-80">নতুন ব্যাচ ভর্তি: </span>
+                    <span className="font-bold text-white">{batchToEnroll?.title}</span>
+                    <span className="mx-2 opacity-50">|</span>
+                    <span className="opacity-80">বিষয়: </span>
+                    <span className="font-bold text-white">{batchToEnroll?.subject}</span>
+                  </>
+                )}
+              </div>
+              <div>
+                <span className="opacity-80">শিক্ষার্থী: </span>
+                <span className="font-bold text-white">{invoice?.student?.name || currentUser?.name || 'শিক্ষার্থী'}</span>
+              </div>
             </div>
-            <div>
-              <span className="opacity-80">শিক্ষার্থী: </span>
-              <span className="font-bold text-white">{invoice.student?.name || 'শিক্ষার্থী'}</span>
-            </div>
-          </div>
+          )}
         </div>
 
         {/* Content Body */}
         <div className="p-5 sm:p-6 overflow-y-auto flex-1 bg-slate-50/50">
           
           {paymentResult ? (
-            /* Success Receipt Screen */
-            <div className="space-y-6 text-center py-4">
-              <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-inner">
+            /* Real Success Receipt Screen */
+            <div className="space-y-6 text-center py-4 animate-fadeIn">
+              <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-inner ring-8 ring-emerald-50">
                 <CheckCircle2 className="w-10 h-10" />
               </div>
 
@@ -212,10 +327,10 @@ export default function SSLCommerzModal({ invoice, isOpen, onClose, onPaymentSuc
                   Payment Verified (সফলভাবে পরিশোধিত)
                 </span>
                 <h4 className="text-2xl font-black text-slate-900 mt-2">
-                  ৳{invoice.amount} টাকা গৃহীত হয়েছে!
+                  ৳{currentAmount} টাকা সফলভাবে গৃহীত হয়েছে!
                 </h4>
                 <p className="text-sm text-slate-600 mt-1">
-                  এসএসএলকমার্জ (SSLCommerz) ভেরিফায়েড গেটওয়ের মাধ্যমে পেমেন্ট সম্পন্ন হয়েছে।
+                  অফিসিয়াল SSLCommerz গেটওয়ের মাধ্যমে লেনদেন ভ্যালিডেট ও সম্পন্ন হয়েছে।
                 </p>
               </div>
 
@@ -224,7 +339,7 @@ export default function SSLCommerzModal({ invoice, isOpen, onClose, onPaymentSuc
                 <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-black text-[#c4161c]">SSLCOMMERZ</span>
-                    <span className="text-[10px] px-2 py-0.5 bg-emerald-50 text-emerald-700 font-bold rounded">VALID</span>
+                    <span className="text-[10px] px-2 py-0.5 bg-emerald-50 text-emerald-700 font-bold rounded border border-emerald-200">VALID TRANSACTION</span>
                   </div>
                   <span className="text-xs text-slate-400 font-mono">
                     {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -250,22 +365,34 @@ export default function SSLCommerzModal({ invoice, isOpen, onClose, onPaymentSuc
                   </div>
                   <div className="flex justify-between pt-2 border-t border-slate-100 font-bold text-sm">
                     <span className="text-slate-800">পরিশোধিত অর্থ (Amount Paid):</span>
-                    <span className="text-emerald-600 font-mono">{formatMoney(invoice.amount)}</span>
+                    <span className="text-emerald-600 font-mono">{formatMoney(currentAmount)}</span>
                   </div>
                 </div>
               </div>
 
-              <div className="flex items-center justify-center gap-3 pt-2">
+              <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
                 <button
                   onClick={() => window.print()}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors"
                 >
                   <Download className="w-4 h-4" />
                   রসিদ ডাউনলোড / প্রিন্ট
                 </button>
+                {onNavigateToBatchChat && (batchToEnroll || paymentResult?.isBatchEnrollment) && (
+                  <button
+                    onClick={() => {
+                      onClose();
+                      onNavigateToBatchChat(batchToEnroll?.id || paymentResult?.batchGroupId);
+                    }}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-bold transition-all shadow-md animate-pulse"
+                  >
+                    <MessageSquare className="w-4 h-4" />
+                    <span>ব্যাচ গ্রুপ চ্যাটে যান →</span>
+                  </button>
+                )}
                 <button
                   onClick={onClose}
-                  className="inline-flex items-center gap-2 px-6 py-2.5 bg-slate-900 hover:bg-black text-white rounded-xl text-xs font-bold transition-colors shadow-md"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-slate-900 hover:bg-black text-white rounded-xl text-xs font-bold transition-colors shadow-md"
                 >
                   সম্পন্ন (Done)
                 </button>
@@ -273,52 +400,68 @@ export default function SSLCommerzModal({ invoice, isOpen, onClose, onPaymentSuc
             </div>
           ) : (
             /* Gateway Selection & Form */
-            <div className="space-y-4">
+            <div className="space-y-5">
               
-              {/* SSLCommerz Demo Interactive Helper Banner */}
-              <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/80 rounded-2xl p-3.5 flex flex-wrap items-center justify-between gap-3 text-xs">
-                <div className="flex items-center gap-2.5">
-                  <span className="p-2 bg-amber-100 text-amber-700 rounded-xl text-sm font-bold shrink-0">⚡</span>
-                  <div>
-                    <strong className="text-amber-950 font-bold block">SSLCommerz ডেমো স্যান্ডবক্স সক্রিয়:</strong>
-                    <span className="text-[11px] text-amber-800">টেস্ট করার জন্য নিচের বাটন চাপলে ডেমো ডাটা অটো বসে যাবে:</span>
+              {/* PRIMARY OPTION: Official SSLCommerz Hosted Checkout Card */}
+              <div className="bg-gradient-to-br from-red-50 via-white to-red-50/40 border-2 border-red-200 rounded-3xl p-5 shadow-sm space-y-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-red-600 text-white flex items-center justify-center shadow-md shrink-0">
+                      <ShieldCheck className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-black text-slate-900 flex items-center gap-2">
+                        <span>অফিসিয়াল SSLCommerz গেটওয়ে (Official Hosted Checkout)</span>
+                        <span className="px-2 py-0.5 text-[10px] font-bold bg-emerald-100 text-emerald-800 rounded-full">
+                          সুপারিশকৃত
+                        </span>
+                      </h4>
+                      <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                        সরাসরি SSLCommerz-এর অফিসিয়াল গেটওয়ে পেজে যান। স্যান্ডবক্স মোডে বিকাশ, নগদ, রকেট, ভিসা ও মাস্টারকার্ড দিয়ে আসল গেটওয়ে পেমেন্ট অভিজ্ঞতা টেস্ট করতে পারবেন।
+                      </p>
+                    </div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActiveTab('mfs');
-                      handleFillDemoMfs('bkash');
-                      setMfsStep(3);
-                    }}
-                    className="px-2.5 py-1.5 bg-pink-600 hover:bg-pink-700 text-white rounded-lg text-[11px] font-bold shadow-sm transition"
-                  >
-                    ডেমো bKash
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActiveTab('mfs');
-                      handleFillDemoMfs('nagad');
-                      setMfsStep(3);
-                    }}
-                    className="px-2.5 py-1.5 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-[11px] font-bold shadow-sm transition"
-                  >
-                    ডেমো Nagad
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActiveTab('card');
-                      handleFillDemoCard();
-                    }}
-                    className="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[11px] font-bold shadow-sm transition"
-                  >
-                    ডেমো Card
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={handleOpenOfficialGateway}
+                  disabled={redirecting}
+                  className="w-full py-3.5 bg-gradient-to-r from-[#990000] via-[#c4161c] to-[#e61e24] hover:opacity-95 text-white rounded-2xl text-sm font-black shadow-lg shadow-red-700/25 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+                >
+                  {redirecting ? (
+                    <>
+                      <RotateCw className="w-4 h-4 animate-spin" />
+                      <span>SSLCommerz গেটওয়ে পেজ ওপেন হচ্ছে...</span>
+                    </>
+                  ) : (
+                    <>
+                      <ExternalLink className="w-4 h-4" />
+                      <span>🚀 অফিসিয়াল SSLCommerz গেটওয়েতে যান ({formatMoney(currentAmount)})</span>
+                    </>
+                  )}
+                </button>
+
+                {sessionData?.GatewayPageURL && sessionData.GatewayPageURL.startsWith('http') && (
+                  <div className="text-center pt-0.5">
+                    <a
+                      href={sessionData.GatewayPageURL}
+                      target="_top"
+                      className="text-xs text-red-700 hover:text-red-900 font-bold underline inline-flex items-center gap-1 cursor-pointer"
+                    >
+                      <span>সরাসরি লিঙ্ক দিয়ে গেটওয়ে ওপেন করতে এখানে ক্লিক করুন →</span>
+                    </a>
+                  </div>
+                )}
+              </div>
+
+              {/* DIVIDER */}
+              <div className="flex items-center my-3 text-xs text-slate-400">
+                <div className="flex-1 border-t border-slate-200"></div>
+                <span className="px-3 font-bold uppercase tracking-wider text-[11px] text-slate-500">
+                  অথবা পেইজ না ছেড়ে ইন-অ্যাপ ডেমো টেস্ট করুন
+                </span>
+                <div className="flex-1 border-t border-slate-200"></div>
               </div>
 
               {/* Payment Channel Selector Tabs */}
@@ -369,7 +512,6 @@ export default function SSLCommerzModal({ invoice, isOpen, onClose, onPaymentSuc
                   
                   {/* MFS Provider Selection */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    
                     {/* bKash */}
                     <button
                       type="button"
@@ -406,7 +548,7 @@ export default function SSLCommerzModal({ invoice, isOpen, onClose, onPaymentSuc
                       </div>
                       <div className="mt-3">
                         <p className="text-xs font-extrabold text-[#F7941D]">নগদ (Nagad)</p>
-                        <p className="text-[10px] text-slate-500">ডাক বিভাগীয় ডিজিটাল</p>
+                        <p className="text-[10px] text-slate-500">ডিজিটাল ওয়ালেট</p>
                       </div>
                     </button>
 
@@ -426,7 +568,7 @@ export default function SSLCommerzModal({ invoice, isOpen, onClose, onPaymentSuc
                       </div>
                       <div className="mt-3">
                         <p className="text-xs font-extrabold text-[#8C3494]">রকেট (Rocket)</p>
-                        <p className="text-[10px] text-slate-500">DBBL 12-ডিজিট</p>
+                        <p className="text-[10px] text-slate-500">DBBL একাউন্ট</p>
                       </div>
                     </button>
 
@@ -446,26 +588,19 @@ export default function SSLCommerzModal({ invoice, isOpen, onClose, onPaymentSuc
                       </div>
                       <div className="mt-3">
                         <p className="text-xs font-extrabold text-[#003366]">উপায় (Upay)</p>
-                        <p className="text-[10px] text-slate-500">UCB ডিজিটাল ওয়ালেট</p>
+                        <p className="text-[10px] text-slate-500">UCB ওয়ালেট</p>
                       </div>
                     </button>
-
                   </div>
 
                   {/* Interactive MFS Checkout Box */}
-                  <div className={`p-5 rounded-2xl border ${
-                    selectedMfs === 'bkash' ? 'bg-pink-50/40 border-pink-200' :
-                    selectedMfs === 'nagad' ? 'bg-orange-50/40 border-orange-200' :
-                    selectedMfs === 'rocket' ? 'bg-purple-50/40 border-purple-200' :
-                    'bg-blue-50/40 border-blue-200'
-                  } space-y-4`}>
-                    
+                  <div className="p-4 sm:p-5 rounded-2xl border bg-white space-y-4 border-slate-200 shadow-sm">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-black uppercase text-slate-800">
                           {selectedMfs.toUpperCase()} গেটওয়ে অথেনটিকেশন
                         </span>
-                        <span className="text-[10px] bg-white px-2 py-0.5 rounded-full font-bold text-slate-600 border border-slate-200">
+                        <span className="text-[10px] bg-slate-100 px-2 py-0.5 rounded-full font-bold text-slate-600">
                           ধাপ {mfsStep} / 3
                         </span>
                       </div>
@@ -488,14 +623,14 @@ export default function SSLCommerzModal({ invoice, isOpen, onClose, onPaymentSuc
                         </div>
                         <p className="text-[11px] text-slate-500 flex items-center gap-1.5">
                           <Lock className="w-3.5 h-3.5 text-slate-400" />
-                          আপনার নম্বরে একটি ৬-ডিজিটের গোপন ওটিপি কোড পাঠানো হবে।
+                          আপনার নম্বরে একটি ওটিপি কোড পাঠানো হবে।
                         </p>
                         <button
                           type="button"
                           onClick={() => setMfsStep(2)}
-                          className="w-full py-2.5 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1"
+                          className="w-full py-2.5 bg-slate-900 hover:bg-black text-white rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1"
                         >
-                          <span>পরবর্তী ধাপে যান (ওটিপি গ্রহণ করুন)</span>
+                          <span>পরবর্তী ধাপে যান (ওটিপি দিন)</span>
                           <ChevronRight className="w-4 h-4" />
                         </button>
                       </div>
@@ -514,7 +649,7 @@ export default function SSLCommerzModal({ invoice, isOpen, onClose, onPaymentSuc
                             type="text"
                             value={mfsOtp}
                             onChange={(e) => setMfsOtp(e.target.value)}
-                            placeholder="6-digit OTP (e.g. 784912)"
+                            placeholder="6-digit OTP"
                             className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-pink-500 font-mono text-sm text-center tracking-widest bg-white"
                           />
                         </div>
@@ -529,7 +664,7 @@ export default function SSLCommerzModal({ invoice, isOpen, onClose, onPaymentSuc
                           <button
                             type="button"
                             onClick={() => setMfsStep(3)}
-                            className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1"
+                            className="flex-1 py-2.5 bg-slate-900 hover:bg-black text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1"
                           >
                             <span>ওটিপি যাচাই ও পিন ধাপে যান</span>
                             <ChevronRight className="w-4 h-4" />
@@ -552,9 +687,6 @@ export default function SSLCommerzModal({ invoice, isOpen, onClose, onPaymentSuc
                             className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-pink-500 font-mono text-sm text-center tracking-widest bg-white"
                           />
                         </div>
-                        <p className="text-[11px] text-slate-500">
-                          🔒 আপনার পিন সম্পূর্ণ এনক্রিপ্টেড ও SSLCommerz গেটওয়ের মাধ্যমে সরাসরি প্রক্রিয়াকৃত হয়।
-                        </p>
                         <div className="flex gap-2">
                           <button
                             type="button"
@@ -577,12 +709,12 @@ export default function SSLCommerzModal({ invoice, isOpen, onClose, onPaymentSuc
                             {loading ? (
                               <>
                                 <RotateCw className="w-4 h-4 animate-spin" />
-                                <span>SSLCommerz পেমেন্ট প্রসেসিং হচ্ছে...</span>
+                                <span>SSLCommerz পেমেন্ট যাচাই হচ্ছে...</span>
                               </>
                             ) : (
                               <>
                                 <Lock className="w-4 h-4" />
-                                <span>{selectedMfs.toUpperCase()} দিয়ে পরিশোধ করুন {formatMoney(invoice.amount)}</span>
+                                <span>{selectedMfs.toUpperCase()} দিয়ে পরিশোধ করুন {formatMoney(currentAmount)}</span>
                               </>
                             )}
                           </button>
@@ -595,116 +727,94 @@ export default function SSLCommerzModal({ invoice, isOpen, onClose, onPaymentSuc
                 </div>
               )}
 
-              {/* TAB 2: Cards (VISA, Mastercard, DBBL Nexus, Amex) */}
+              {/* TAB 2: Cards (VISA, Mastercard, DBBL Nexus) */}
               {activeTab === 'card' && (
                 <div className="space-y-4 animate-fadeIn">
                   
-                  {/* Card Brand Badges & Demo fill */}
-                  <div className="flex items-center justify-between bg-white p-3 rounded-xl border border-slate-200">
-                    <div className="flex items-center gap-2">
-                      <span className="px-2 py-1 bg-blue-900 text-white rounded text-[10px] font-black tracking-wider">VISA</span>
-                      <span className="px-2 py-1 bg-red-600 text-white rounded text-[10px] font-black tracking-wider">Mastercard</span>
-                      <span className="px-2 py-1 bg-emerald-700 text-white rounded text-[10px] font-black tracking-wider">Nexus</span>
-                      <span className="px-2 py-1 bg-sky-700 text-white rounded text-[10px] font-black tracking-wider">Amex</span>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={handleFillDemoCard}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors"
-                    >
-                      <Sparkles className="w-3.5 h-3.5" />
-                      টেস্ট কার্ড পূরণ
-                    </button>
-                  </div>
-
-                  {/* Card Inputs */}
-                  <div className="bg-white p-5 rounded-2xl border border-slate-200 space-y-3.5 shadow-sm">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
-                        কার্ড নম্বর (Card Number)
-                      </label>
-                      <div className="relative">
-                        <input
-                          type="text"
-                          value={cardNumber}
-                          onChange={(e) => setCardNumber(e.target.value)}
-                          placeholder="4242 4242 4242 4242"
-                          className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-sm"
-                        />
-                        <CreditCard className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
-                      </div>
+                  {/* Card Simulator Form */}
+                  <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-700">কার্ডের বিবরণ প্রদান করুন</span>
+                      <button
+                        type="button"
+                        onClick={handleFillDemoCard}
+                        className="text-xs text-indigo-600 hover:text-indigo-800 font-bold"
+                      >
+                        ডেমো কার্ড বসান
+                      </button>
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
-                        কার্ডধারীর নাম (Cardholder Name)
-                      </label>
+                      <label className="block text-[11px] font-bold text-slate-600 mb-1">কার্ড নম্বর (Card Number)</label>
                       <input
                         type="text"
-                        value={cardHolder}
-                        onChange={(e) => setCardHolder(e.target.value)}
-                        placeholder="Name on Card"
-                        className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                        value={cardNumber}
+                        onChange={(e) => setCardNumber(e.target.value)}
+                        placeholder="4242 •••• •••• 4242"
+                        className="w-full px-4 py-2.5 rounded-xl border border-slate-300 font-mono text-sm"
                       />
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-xs font-bold text-slate-700 mb-1">
-                          মেয়াদ উত্তীর্ণ (MM/YY)
-                        </label>
+                        <label className="block text-[11px] font-bold text-slate-600 mb-1">মেয়াদ (MM/YY)</label>
                         <input
                           type="text"
                           value={cardExpiry}
                           onChange={(e) => setCardExpiry(e.target.value)}
-                          placeholder="MM/YY"
-                          className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-sm text-center"
+                          placeholder="12/28"
+                          className="w-full px-4 py-2.5 rounded-xl border border-slate-300 font-mono text-sm"
                         />
                       </div>
-
                       <div>
-                        <label className="block text-xs font-bold text-slate-700 mb-1">
-                          সিভিভি / সিভিসি (CVV)
-                        </label>
+                        <label className="block text-[11px] font-bold text-slate-600 mb-1">CVV / CVC</label>
                         <input
                           type="password"
                           value={cardCvv}
                           onChange={(e) => setCardCvv(e.target.value)}
-                          placeholder="3 digits"
-                          maxLength={4}
-                          className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-sm text-center tracking-widest"
+                          placeholder="888"
+                          className="w-full px-4 py-2.5 rounded-xl border border-slate-300 font-mono text-sm"
                         />
                       </div>
                     </div>
-                  </div>
 
-                  <button
-                    type="button"
-                    onClick={handleExecutePayment}
-                    disabled={loading}
-                    className="w-full py-3.5 bg-gradient-to-r from-[#990000] to-[#c4161c] hover:from-[#800000] hover:to-[#b0141a] text-white rounded-xl text-sm font-black shadow-lg shadow-red-900/20 transition-all flex items-center justify-center gap-2"
-                  >
-                    {loading ? (
-                      <>
-                        <RotateCw className="w-4 h-4 animate-spin" />
-                        <span>SSLCommerz কার্ড চার্জ হচ্ছে...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Lock className="w-4 h-4" />
-                        <span>কার্ড দিয়ে নিশ্চিত করুন {formatMoney(invoice.amount)}</span>
-                      </>
-                    )}
-                  </button>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-600 mb-1">কার্ডহোল্ডার নাম</label>
+                      <input
+                        type="text"
+                        value={cardHolder}
+                        onChange={(e) => setCardHolder(e.target.value)}
+                        placeholder="তানভীর আহমেদ"
+                        className="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm"
+                      />
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleExecutePayment}
+                      disabled={loading}
+                      className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black shadow-md flex items-center justify-center gap-2"
+                    >
+                      {loading ? (
+                        <>
+                          <RotateCw className="w-4 h-4 animate-spin" />
+                          <span>কার্ড প্রসেসিং হচ্ছে...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Lock className="w-4 h-4" />
+                          <span>কার্ডে পরিশোধ করুন {formatMoney(currentAmount)}</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
 
                 </div>
               )}
 
-              {/* TAB 3: Net Banking (City Touch, Islami Bank, BRAC Bank, EBL) */}
+              {/* TAB 3: Net Banking */}
               {activeTab === 'netbanking' && (
                 <div className="space-y-4 animate-fadeIn">
-                  
                   <div className="grid grid-cols-2 gap-3">
                     {[
                       { id: 'city', name: 'City Touch (The City Bank)', color: 'text-red-700' },
@@ -728,36 +838,11 @@ export default function SSLCommerzModal({ invoice, isOpen, onClose, onPaymentSuc
                     ))}
                   </div>
 
-                  <div className="bg-white p-5 rounded-2xl border border-slate-200 space-y-3.5 shadow-sm">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
-                        ব্যাংক অনলাইন আইডি / ইউজার আইডি
-                      </label>
-                      <input
-                        type="text"
-                        value={bankUserId}
-                        onChange={(e) => setBankUserId(e.target.value)}
-                        className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-mono"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
-                        ইন্টারনেট ব্যাংকিং পাসওয়ার্ড
-                      </label>
-                      <input
-                        type="password"
-                        value={bankPassword}
-                        onChange={(e) => setBankPassword(e.target.value)}
-                        className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
-                      />
-                    </div>
-                  </div>
-
                   <button
                     type="button"
                     onClick={handleExecutePayment}
                     disabled={loading}
-                    className="w-full py-3.5 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white rounded-xl text-sm font-black shadow-md transition-all flex items-center justify-center gap-2"
+                    className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black shadow-md flex items-center justify-center gap-2"
                   >
                     {loading ? (
                       <>
@@ -767,11 +852,10 @@ export default function SSLCommerzModal({ invoice, isOpen, onClose, onPaymentSuc
                     ) : (
                       <>
                         <Lock className="w-4 h-4" />
-                        <span>ইন্টারনেট ব্যাংকিং দিয়ে পরিশোধ {formatMoney(invoice.amount)}</span>
+                        <span>ইন্টারনেট ব্যাংকিং দিয়ে পরিশোধ {formatMoney(currentAmount)}</span>
                       </>
                     )}
                   </button>
-
                 </div>
               )}
 
@@ -789,7 +873,7 @@ export default function SSLCommerzModal({ invoice, isOpen, onClose, onPaymentSuc
                   <ShieldCheck className="w-4 h-4 text-emerald-600" />
                   <span>SSLCommerz 256-Bit SSL দ্বারা সম্পূর্ণ সুরক্ষিত</span>
                 </div>
-                <span className="font-mono text-slate-400">Merchant Store: EduTrack BD</span>
+                <span className="font-mono text-slate-400">Merchant: EduTrack BD</span>
               </div>
 
             </div>

@@ -206,10 +206,14 @@ export default function InvoicesView({ invoices, students, classes, onRefresh })
                               <Receipt className="w-3.5 h-3.5 inline mr-1" />
                               {lang === 'bn' ? 'রসিদ' : 'Receipt'}
                             </button>
+                          ) : isTeacher ? (
+                            <span className="px-2.5 py-1 bg-amber-50 text-amber-800 border border-amber-200 rounded text-xs font-semibold">
+                              {lang === 'bn' ? 'পেমেন্ট বকেয়া' : 'Payment Due'}
+                            </span>
                           ) : (
                             <button
                               onClick={() => setSelectedSSLInvoice(inv)}
-                              className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded text-xs font-semibold transition"
+                              className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded text-xs font-semibold transition shadow-sm"
                             >
                               {lang === 'bn' ? 'পেমেন্ট (SSLCommerz)' : 'Pay (SSLCommerz)'}
                             </button>

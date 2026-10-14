@@ -25,6 +25,9 @@ import FindTutorView from './components/FindTutorView';
 import TuitionJobsView from './components/TuitionJobsView';
 import OfflineBanner from './components/OfflineBanner';
 import ServerConfigModal from './components/ServerConfigModal';
+import SSLCommerzModal from './components/SSLCommerzModal';
+import NewBatchPopupModal from './components/NewBatchPopupModal';
+import confetti from 'canvas-confetti';
 
 export default function App() {
   const { currentUser, isAdmin, isTeacher, isParent, isStudent, refreshKey, triggerRefresh } = useAuth();
@@ -35,6 +38,46 @@ export default function App() {
   const [reportStudentId, setReportStudentId] = useState(null);
   const [reportClassId, setReportClassId] = useState(null);
   const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
+
+  // SSLCommerz Verified Redirect Success Modal
+  const [sslSuccessData, setSslSuccessData] = useState(null);
+  const [sslSuccessInvoice, setSslSuccessInvoice] = useState(null);
+
+  // Batch Enrollment & Real-Time Pop-up Alert
+  const [pendingBatchAlert, setPendingBatchAlert] = useState(null);
+  const [batchToEnroll, setBatchToEnroll] = useState(null);
+  const [activeBatchChatId, setActiveBatchChatId] = useState(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const paymentStatus = params.get('payment');
+      if (paymentStatus === 'sslcommerz_success') {
+        const invId = params.get('invoiceId');
+        const tranId = params.get('tranId');
+        const valId = params.get('valId');
+        const amount = params.get('amount');
+        const channel = params.get('channel');
+
+        // Clean URL parameters smoothly without page reload
+        window.history.replaceState({}, document.title, window.location.pathname);
+
+        // Confetti celebration
+        confetti({ particleCount: 130, spread: 80, origin: { y: 0.55 } });
+
+        // Trigger full data refresh
+        loadAppData();
+
+        setSslSuccessData({
+          invoiceId: invId,
+          tranId,
+          valId,
+          amount,
+          channel: channel || 'SSLCommerz Gateway'
+        });
+      }
+    }
+  }, []);
 
   useEffect(() => {
     const handleUnread = (e) => {
@@ -80,6 +123,39 @@ export default function App() {
       loadAppData();
     }
   }, [refreshKey, currentUser]);
+
+  // Real-time listener: Check if a new batch has been created for students
+  useEffect(() => {
+    if (!currentUser || isTeacher || isAdmin) return;
+
+    const checkBatchAlerts = async () => {
+      try {
+        const notifRes = await api.getNotifications(currentUser.id);
+        const batchNotifs = notifRes?.notifications?.filter(n => n.type === 'new_batch_created') || [];
+        
+        if (batchNotifs.length > 0) {
+          const latestNotif = batchNotifs[0];
+          const classId = latestNotif.classId || latestNotif.batchData?.id;
+          
+          const isEnrolled = enrollments.some(e => e.classId === classId && (e.studentId === currentUser.id || e.student?.id === currentUser.id));
+          const dismissed = sessionStorage.getItem(`edutrack_dismissed_batch_${classId}`);
+
+          if (!isEnrolled && !dismissed) {
+            const batchObj = latestNotif.batchData || classes.find(c => c.id === classId);
+            if (batchObj) {
+              setPendingBatchAlert(batchObj);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Batch alert check note:', err);
+      }
+    };
+
+    checkBatchAlerts();
+    const interval = setInterval(checkBatchAlerts, 4000);
+    return () => clearInterval(interval);
+  }, [currentUser?.id, isTeacher, isAdmin, classes.length, enrollments.length]);
 
   // If user is not logged in or explicitly clicked to view the Auth Page
   if (!currentUser || showFullAuthPage) {
@@ -154,14 +230,16 @@ export default function App() {
             ] : [
               { id: 'overview', label: 'ড্যাশবোর্ড' },
               { id: 'find-tutor', label: 'হোম টিউটর' },
+              { id: 'classes', label: 'আমার ব্যাচ' },
               { id: 'routine', label: 'রুটিন' },
-              { id: 'rewards', label: 'রিওয়ার্ড' },
-              { id: 'notes', label: 'নোটস' },
-              { id: 'reports', label: 'রিপোর্ট' },
-              { id: 'invoices', label: 'পেমেন্ট' },
-              { id: 'messages', label: 'ডাউট চ্যাট' },
               { id: 'attendance', label: 'হাজিরা' },
               { id: 'assignments', label: 'হোমওয়ার্ক' },
+              { id: 'invoices', label: 'পেমেন্ট' },
+              { id: 'notes', label: 'নোটস' },
+              { id: 'messages', label: 'চ্যাট' },
+              { id: 'reports', label: 'রিপোর্ট' },
+              { id: 'rewards', label: 'রিওয়ার্ড' },
+              { id: 'announcements', label: 'নোটিশ' },
             ]).map(tab => (
               <button
                 key={tab.id}
@@ -202,16 +280,31 @@ export default function App() {
           )}
 
           {currentTab === 'find-tutor' && (
-            <FindTutorView
-              onNavigateToChat={() => setCurrentTab('messages')}
-            />
+            isTeacher ? (
+              /* Teachers don't hire tutors; route to their tuition jobs */
+              <TuitionJobsView
+                onNavigateToChat={() => setCurrentTab('messages')}
+                onRefresh={loadAppData}
+              />
+            ) : (
+              <FindTutorView
+                onNavigateToChat={() => setCurrentTab('messages')}
+              />
+            )
           )}
 
           {currentTab === 'tuition-jobs' && (
-            <TuitionJobsView
-              onNavigateToChat={() => setCurrentTab('messages')}
-              onRefresh={loadAppData}
-            />
+            !isTeacher && !isAdmin ? (
+              /* Students & parents don't accept jobs; route to Find Tutor */
+              <FindTutorView
+                onNavigateToChat={() => setCurrentTab('messages')}
+              />
+            ) : (
+              <TuitionJobsView
+                onNavigateToChat={() => setCurrentTab('messages')}
+                onRefresh={loadAppData}
+              />
+            )
           )}
 
           {currentTab === 'routine' && (
@@ -221,10 +314,23 @@ export default function App() {
           )}
 
           {currentTab === 'rewards' && (
-            <RewardsView
-              students={students}
-              onRefreshInvoices={loadAppData}
-            />
+            isTeacher ? (
+              /* Teachers don't have student rewards; route to overview */
+              <DashboardOverview
+                stats={stats}
+                classes={classes}
+                invoices={invoices}
+                enrollments={enrollments}
+                assignments={assignments}
+                onNavigate={setCurrentTab}
+                onRefresh={loadAppData}
+              />
+            ) : (
+              <RewardsView
+                students={students}
+                onRefreshInvoices={loadAppData}
+              />
+            )
           )}
 
           {currentTab === 'notes' && (
@@ -252,7 +358,7 @@ export default function App() {
           )}
 
           {currentTab === 'messages' && (
-            <ChatView />
+            <ChatView initialBatchId={activeBatchChatId} />
           )}
 
           {currentTab === 'classes' && (
@@ -260,6 +366,7 @@ export default function App() {
               classes={classes}
               enrollments={enrollments}
               onRefresh={loadAppData}
+              onEnrollInBatch={(batch) => setBatchToEnroll(batch)}
             />
           )}
 
@@ -291,16 +398,25 @@ export default function App() {
           )}
 
           {currentTab === 'students' && (
-            <StudentsView
-              students={students}
-              enrollments={enrollments}
-              invoices={invoices}
-              classes={classes}
-              onOpenReport={handleNavigateToReport}
-              onSelectChat={(student) => {
-                setCurrentTab('messages');
-              }}
-            />
+            isStudent ? (
+              /* Students should not manage student rosters; route to their classes */
+              <ClassesView
+                classes={classes}
+                enrollments={enrollments}
+                onRefresh={loadAppData}
+              />
+            ) : (
+              <StudentsView
+                students={students}
+                enrollments={enrollments}
+                invoices={invoices}
+                classes={classes}
+                onOpenReport={handleNavigateToReport}
+                onSelectChat={(student) => {
+                  setCurrentTab('messages');
+                }}
+              />
+            )
           )}
         </main>
       </div>
@@ -323,6 +439,58 @@ export default function App() {
         isOpen={showServerModal}
         onClose={() => setShowServerModal(false)}
       />
+
+      {/* Real-time New Batch Created Alert Pop-up Modal for Students */}
+      {pendingBatchAlert && (
+        <NewBatchPopupModal
+          isOpen={!!pendingBatchAlert}
+          batch={pendingBatchAlert}
+          onClose={() => {
+            if (pendingBatchAlert?.id) {
+              sessionStorage.setItem(`edutrack_dismissed_batch_${pendingBatchAlert.id}`, 'true');
+            }
+            setPendingBatchAlert(null);
+          }}
+          onEnrollWithSSLCommerz={(batch) => {
+            setBatchToEnroll(batch);
+            setPendingBatchAlert(null);
+          }}
+        />
+      )}
+
+      {/* Global SSLCommerz Modal for Batch Enrollment & Instant Group Join */}
+      {batchToEnroll && (
+        <SSLCommerzModal
+          isOpen={!!batchToEnroll}
+          batchToEnroll={batchToEnroll}
+          onClose={() => setBatchToEnroll(null)}
+          onPaymentSuccess={() => {
+            loadAppData();
+          }}
+          onNavigateToBatchChat={(batchId) => {
+            setActiveBatchChatId(batchId || batchToEnroll?.id);
+            setCurrentTab('messages');
+            setBatchToEnroll(null);
+          }}
+        />
+      )}
+
+      {/* Global SSLCommerz Real Success Receipt Modal */}
+      {sslSuccessData && (
+        <SSLCommerzModal
+          isOpen={!!sslSuccessData}
+          invoice={sslSuccessInvoice || { id: sslSuccessData.invoiceId, amount: sslSuccessData.amount, title: 'টিউশন ফি ও কোর্স পেমেন্ট', invoiceNumber: 'INV-SSLCOMMERZ' }}
+          successPayload={sslSuccessData}
+          onClose={() => {
+            setSslSuccessData(null);
+            setSslSuccessInvoice(null);
+            loadAppData();
+          }}
+          onPaymentSuccess={() => {
+            loadAppData();
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -763,6 +763,53 @@ export const INITIAL_OFFLINE_DATA = {
     }
   ],
 
+  reviews: [
+    {
+      id: "rev-1",
+      teacherId: "teacher-1",
+      studentId: "student-1",
+      studentName: "তানভীর আহমেদ (Alex Rivera)",
+      studentAvatar: "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&q=80&w=250",
+      rating: 5,
+      subject: "উচ্চতর গণিত ও পদার্থবিজ্ঞান",
+      comment: "স্যার জটিল ক্যালকুলাস এবং মেকানিক্স এত সহজে পড়ান যে কোনো বিষয় বুঝতে অসুবিধা হয় না। প্রতি সপ্তাহে নিয়মিত মক টেস্ট নেওয়ার কারণে আমার কনফিডেন্স অনেক বেড়েছে।",
+      createdAt: "2026-10-10T14:30:00Z"
+    },
+    {
+      id: "rev-2",
+      teacherId: "teacher-1",
+      studentId: "student-2",
+      studentName: "নুসরাত জাহান (Emily Zhang)",
+      studentAvatar: "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&q=80&w=250",
+      rating: 5,
+      subject: "উচ্চতর গণিত",
+      comment: "অসাধারণ শিক্ষক! সময়নিষ্ঠ এবং অত্যন্ত যত্নবান। আমার উচ্চতর গণিতের দুর্বলতাগুলো চিহ্নিত করে খুব দ্রুত সমাধান করে দিয়েছেন।",
+      createdAt: "2026-10-08T18:15:00Z"
+    },
+    {
+      id: "rev-3",
+      teacherId: "teacher-1",
+      studentId: "student-3",
+      studentName: "সাকিব আল হাসান (Marcus Johnson)",
+      studentAvatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=250",
+      rating: 5,
+      subject: "পদার্থবিজ্ঞান ১ম ও ২য় পত্র",
+      comment: "বুয়েট ও ইঞ্জিনিয়ারিং ভর্তি পরীক্ষার প্রস্তুতির জন্য রশিদুল স্যারের বিকল্প নেই। কনসেপচুয়াল ব্যাসিক একদম ক্লিয়ার করে দেন।",
+      createdAt: "2026-10-04T09:45:00Z"
+    },
+    {
+      id: "rev-4",
+      teacherId: "teacher-1",
+      studentId: "student-4",
+      studentName: "সাবরিনা আক্তার (Chloe Bennett)",
+      studentAvatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=250",
+      rating: 4,
+      subject: "উচ্চতর গণিত ও ক্যালকুলাস",
+      comment: "খুব ভালো পড়ান এবং বাড়ির কাজে অনেক গুরুত্ব দেন। নোটসগুলো খুবই গোছানো।",
+      createdAt: "2026-09-28T16:20:00Z"
+    }
+  ],
+
   settings: {
     currencyCode: "BDT",
     currencySymbol: "৳",

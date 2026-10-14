@@ -3,7 +3,8 @@ import {
   BookOpen, Video, Users, Clock, DollarSign, Plus, 
   MapPin, CheckCircle, ExternalLink, Calendar as CalendarIcon, Trash2, 
   Edit3, AlertCircle, Check, X, ArrowRight, MessageSquare, 
-  Sparkles, ShieldCheck, ChevronLeft, ChevronRight, UserCheck, User, Smartphone
+  Sparkles, ShieldCheck, ChevronLeft, ChevronRight, UserCheck, User, Smartphone,
+  CreditCard, CheckCircle2
 } from 'lucide-react';
 import { api } from '../api';
 import { useAuth } from '../context/AuthContext';
@@ -11,7 +12,7 @@ import TimeChangeModal from './TimeChangeModal';
 import ZoomJoinModal from './ZoomJoinModal';
 import { autoDeleteRecord } from '../firestoreSync';
 
-export default function ClassesView({ classes, enrollments, onRefresh }) {
+export default function ClassesView({ classes, enrollments, onRefresh, onEnrollInBatch }) {
   const { currentUser, isTeacher, formatMoney, currencySymbol, lang } = useAuth();
   
   // View mode: 'list' (কোর্স ও ব্যাচ তালিকা) | 'calendar' (টিউশন ক্যালেন্ডার) | 'requests' (পরিবর্তনের অনুরোধ)
@@ -434,7 +435,7 @@ export default function ClassesView({ classes, enrollments, onRefresh }) {
                   </div>
                 </div>
 
-                {/* Card Footer: Student Roster & Reschedule Action */}
+                {/* Card Footer: Student Roster & Reschedule/Enroll Action */}
                 <div className="px-5 py-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-xs">
                   <div className="flex items-center gap-1.5 text-slate-500">
                     <Users className="w-3.5 h-3.5" />
@@ -442,15 +443,33 @@ export default function ClassesView({ classes, enrollments, onRefresh }) {
                   </div>
 
                   {!isTeacher && (
-                    <button
-                      onClick={() => {
-                        setSelectedRescheduleClass(cls);
-                        setShowTimeRequestModal(true);
-                      }}
-                      className="text-amber-600 hover:text-amber-700 font-bold hover:underline"
-                    >
-                      তারিখ/সময় পরিবর্তন →
-                    </button>
+                    enrolledList.some(e => e.studentId === currentUser?.id) ? (
+                      <div className="flex items-center gap-2">
+                        <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded font-bold text-[11px] flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                          <span>এনরোল্ড • গ্রুপে যুক্ত</span>
+                        </span>
+                        <button
+                          onClick={() => {
+                            setSelectedRescheduleClass(cls);
+                            setShowTimeRequestModal(true);
+                          }}
+                          className="text-amber-600 hover:text-amber-700 font-bold hover:underline"
+                        >
+                          সময় পরিবর্তন →
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          if (onEnrollInBatch) onEnrollInBatch(cls);
+                        }}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 bg-gradient-to-r from-red-600 to-indigo-600 hover:from-red-700 hover:to-indigo-700 text-white font-bold rounded-lg text-xs shadow-sm transition"
+                      >
+                        <CreditCard className="w-3.5 h-3.5" />
+                        <span>এনরোল করুন ({formatMoney(cls.monthlyFee)})</span>
+                      </button>
+                    )
                   )}
                 </div>
 

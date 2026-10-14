@@ -52,14 +52,14 @@ export default function Sidebar({ currentTab, onSelectTab, unreadMessagesCount =
     navItems = [
       { id: 'overview', label: lang === 'bn' ? 'ড্যাশবোর্ড' : 'Dashboard', icon: LayoutDashboard },
       { id: 'find-tutor', label: lang === 'bn' ? 'হোম টিউটর খুঁজুন' : 'Find Tutor', icon: Compass },
+      { id: 'classes', label: lang === 'bn' ? 'আমার ব্যাচ' : 'My Classes', icon: BookOpen },
       { id: 'routine', label: lang === 'bn' ? 'ক্লাস রুটিন' : 'Routine', icon: Clock },
-      { id: 'notes', label: lang === 'bn' ? 'স্টাডি নোটস' : 'Study Notes', icon: FolderDown },
-      { id: 'reports', label: lang === 'bn' ? 'মাসিক রিপোর্ট' : 'Reports', icon: FileSpreadsheet },
-      { id: 'invoices', label: lang === 'bn' ? 'ফি ও ইনভয়েস' : 'Invoices', icon: CreditCard },
-      { id: 'messages', label: lang === 'bn' ? 'ইনবক্স ও চ্যাট' : 'Messages', icon: MessageSquare, badge: unreadMessagesCount },
       { id: 'attendance', label: lang === 'bn' ? 'আমার হাজিরা' : 'Attendance', icon: CalendarCheck },
       { id: 'assignments', label: lang === 'bn' ? 'হোমওয়ার্ক' : 'Homework', icon: FileText },
-      { id: 'students', label: lang === 'bn' ? 'সহপাঠী' : 'Classmates', icon: Users },
+      { id: 'invoices', label: lang === 'bn' ? 'ফি ও ইনভয়েস' : 'Invoices', icon: CreditCard },
+      { id: 'notes', label: lang === 'bn' ? 'স্টাডি নোটস' : 'Study Notes', icon: FolderDown },
+      { id: 'messages', label: lang === 'bn' ? 'ইনবক্স ও চ্যাট' : 'Messages', icon: MessageSquare, badge: unreadMessagesCount },
+      { id: 'reports', label: lang === 'bn' ? 'আমার রিপোর্ট' : 'Reports', icon: FileSpreadsheet },
       { id: 'rewards', label: lang === 'bn' ? 'রিওয়ার্ডস' : 'Rewards', icon: Trophy },
       { id: 'announcements', label: lang === 'bn' ? 'নোটিশ' : 'Notices', icon: Bell },
     ];
@@ -116,7 +116,7 @@ export default function Sidebar({ currentTab, onSelectTab, unreadMessagesCount =
 
       {/* Bottom tools */}
       <div className="space-y-1.5 pt-3 border-t border-slate-100">
-        {onOpenLocationModal && (
+        {onOpenLocationModal && !isTeacher && !isAdmin && (
           <button
             onClick={onOpenLocationModal}
             className="w-full flex items-center justify-center gap-2 py-1.5 px-3 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-lg text-xs font-medium transition border border-slate-200"

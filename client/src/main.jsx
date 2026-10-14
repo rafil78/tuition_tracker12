@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.jsx';
 import { AuthProvider } from './context/AuthContext.jsx';
+import './firebase.js';
 import './index.css';
 
 // Register Service Worker for true Offline PWA capabilities

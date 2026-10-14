@@ -1,34 +1,17 @@
 import { offlineDb } from './offlineDb';
 
-// Connection and Base API URL configuration
-export const getConnectionMode = () => {
-  if (typeof window === 'undefined') return 'offline';
-  const saved = localStorage.getItem('edutrack_server_url');
-  if (saved === 'offline') return 'offline';
-  if (saved && saved.includes('192.168.')) return 'local';
-  if (saved) return 'custom';
-  
-  // Default on mobile vs web
-  const isNativeMobile = 
-    Boolean(window.Capacitor?.isNativePlatform?.()) ||
-    window.location.protocol === 'file:' ||
-    window.location.origin.includes('capacitor://') ||
-    (window.location.hostname === 'localhost' && !window.location.port) ||
-    (window.location.origin === 'https://localhost');
-
-  if (isNativeMobile) {
-    return 'offline'; // Default mobile to instant offline-first
+// Automatically clean up any stale offline setting
+if (typeof window !== 'undefined') {
+  if (localStorage.getItem('edutrack_server_url') === 'offline') {
+    localStorage.removeItem('edutrack_server_url');
   }
-  return 'default';
-};
+}
 
-export const isOfflineMode = () => {
-  if (typeof window === 'undefined') return true;
-  const saved = localStorage.getItem('edutrack_server_url');
-  if (saved === 'offline') return true;
-  if (typeof navigator !== 'undefined' && !navigator.onLine) return true;
-  return false;
-};
+// Connection and Base API URL configuration - OFFLINE MODE IS DISABLED
+export const getConnectionMode = () => 'firebase-connected';
+
+// Always return false: Server and App work ONLY in Firebase Connected Mode (No Offline Mode)
+export const isOfflineMode = () => false;
 
 export const getApiBase = () => {
   if (typeof window !== 'undefined') {
@@ -41,7 +24,7 @@ export const getApiBase = () => {
 };
 
 export const setServerUrl = (url) => {
-  if (!url || url === 'default') {
+  if (!url || url === 'default' || url === 'offline') {
     localStorage.removeItem('edutrack_server_url');
   } else {
     localStorage.setItem('edutrack_server_url', url);
@@ -53,18 +36,21 @@ export const setServerUrl = (url) => {
 
 const getUrl = (path) => `${getApiBase()}${path}`;
 
-async function safeFetch(path, options = {}, fallback = null) {
-  if (isOfflineMode()) {
-    return fallback !== null ? fallback : { success: true };
-  }
-
+async function safeFetch(path, options = {}, fallback = null, timeoutMs = 45000) {
+  let timeoutId = null;
   try {
     const url = getUrl(path);
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3500); // 3.5s timeout
+    timeoutId = setTimeout(() => {
+      try {
+        controller.abort(new DOMException('Request timed out', 'TimeoutError'));
+      } catch (e) {
+        controller.abort();
+      }
+    }, timeoutMs);
 
     const res = await fetch(url, { ...options, signal: controller.signal });
-    clearTimeout(timeoutId);
+    if (timeoutId) clearTimeout(timeoutId);
 
     if (!res.ok) {
       const errData = await res.json().catch(() => ({}));
@@ -75,8 +61,13 @@ async function safeFetch(path, options = {}, fallback = null) {
     }
     return await res.json();
   } catch (err) {
+    if (timeoutId) clearTimeout(timeoutId);
     console.warn(`Network note for ${path}:`, err.message);
-    return fallback !== null ? fallback : { error: err.message, networkError: true };
+    const isAbort = err.name === 'AbortError' || err.name === 'TimeoutError' || err.message?.toLowerCase().includes('abort');
+    const friendlyError = isAbort 
+      ? 'সার্ভার রেসপন্স করতে অতিরিক্ত সময় নিয়েছে (Timeout)। অনুগ্রহ করে কিছুক্ষণ পর আবার চেষ্টা করুন।' 
+      : err.message;
+    return fallback !== null ? fallback : { error: friendlyError, networkError: true, isTimeout: isAbort };
   }
 }
 
@@ -440,10 +431,17 @@ export const api = {
     return res;
   },
 
-  // Messages
-  async getMessages(user1, user2) {
+  // Messages (1-on-1 and Batch Groups)
+  async getMessages(user1, user2, classId = null) {
     if (isOfflineMode()) {
-      let list = offlineDb.getAll('messages');
+      let list = offlineDb.getAll('messages') || [];
+      if (classId) {
+        return list.filter(m => m.classId === classId || m.receiverId === `batch-${classId}` || m.receiverId === classId);
+      }
+      if (user1 && user1.startsWith('batch-')) {
+        const cid = user1.replace('batch-', '');
+        return list.filter(m => m.classId === cid || m.receiverId === user1);
+      }
       if (user1 && user2) {
         list = list.filter(m => 
           (m.senderId === user1 && m.receiverId === user2) ||
@@ -454,24 +452,38 @@ export const api = {
       }
       return list;
     }
+
     let path = '/messages';
-    if (user1 && user2) {
-      path += `?user1=${user1}&user2=${user2}`;
+    if (classId) {
+      path += `?classId=${encodeURIComponent(classId)}`;
+    } else if (user1 && user1.startsWith('batch-')) {
+      path += `?groupId=${encodeURIComponent(user1)}`;
+    } else if (user1 && user2) {
+      path += `?user1=${encodeURIComponent(user1)}&user2=${encodeURIComponent(user2)}`;
     } else if (user1) {
-      path += `?user1=${user1}`;
+      path += `?user1=${encodeURIComponent(user1)}`;
     }
+
     const res = await safeFetch(path, {}, null);
     if (!res || res.networkError || !Array.isArray(res)) {
-      let list = offlineDb.getAll('messages');
-      if (user1 && user2) {
-        list = list.filter(m => 
-          (m.senderId === user1 && m.receiverId === user2) ||
-          (m.senderId === user2 && m.receiverId === user1)
-        );
-      }
+      let list = offlineDb.getAll('messages') || [];
       return list;
     }
     return res;
+  },
+
+  async getBatchGroups(userId = null) {
+    const path = userId ? `/batch-groups?userId=${encodeURIComponent(userId)}` : '/batch-groups';
+    const res = await safeFetch(path, {}, []);
+    return Array.isArray(res) ? res : [];
+  },
+
+  async enrollBatch(enrollPayload) {
+    return safeFetch('/enroll-batch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(enrollPayload)
+    }, { success: false, error: 'সার্ভারে এনরোলমেন্ট রিকোয়েস্ট ব্যর্থ হয়েছে।' });
   },
 
   async sendMessage(messageData) {
@@ -855,33 +867,31 @@ export const api = {
   async sendOtp(email, name = '') {
     if (isOfflineMode()) {
       return {
-        success: true,
-        otp: '123456',
-        message: 'অফলাইন ওটিপি সক্রিয় (কোড: 123456)',
-        deliveryMethod: 'Offline Instant Generator'
+        success: false,
+        error: 'অফলাইন মোডে জিমেইলে ওটিপি পাঠানো সম্ভব নয়। সার্ভার মোডে স্যুইচ করুন।'
       };
     }
     return safeFetch('/auth/send-otp', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, name }),
-    }, { success: true, otp: '123456', message: 'ডেমো ওটিপি সক্রিয়' });
+    }, null, 60000);
   },
 
   async verifyOtp(email, otp) {
     if (isOfflineMode()) {
-      return { success: true, verified: true };
+      return { success: false, error: 'অফলাইন মোড' };
     }
     return safeFetch('/auth/verify-otp', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, otp }),
-    }, { success: true, verified: true });
+    }, null, 30000);
   },
 
   async getSmtpConfig() {
     if (isOfflineMode()) {
-      return { configured: false, user: 'offline@edutrack.com' };
+      return { configured: false, user: '' };
     }
     return safeFetch('/settings/smtp', {}, { configured: false, user: '' });
   },
@@ -894,27 +904,38 @@ export const api = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(config),
-    });
+    }, null, 15000);
+  },
+
+  async testSmtpConfig(config) {
+    if (isOfflineMode()) {
+      return { success: false, error: 'অফলাইন মোডে টেস্ট সম্ভব নয়' };
+    }
+    return safeFetch('/settings/smtp/test', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(config),
+    }, null, 25000);
   },
 
   // SSLCommerz
-  async initSSLCommerz(invoiceId, customerDetails = {}) {
+  async initSSLCommerz(invoiceIdOrPayload, customerDetails = {}) {
     if (isOfflineMode()) {
       return {
         status: 'SUCCESS',
-        GatewayPageURL: `https://sandbox.sslcommerz.com/gwprocess/v4/demo?inv=${invoiceId}`,
-        invoiceId
+        GatewayPageURL: `https://sandbox.sslcommerz.com/gwprocess/v4/demo`,
+        invoiceId: typeof invoiceIdOrPayload === 'string' ? invoiceIdOrPayload : invoiceIdOrPayload?.invoiceId
       };
     }
+    const payload = typeof invoiceIdOrPayload === 'object' && invoiceIdOrPayload !== null
+      ? { ...invoiceIdOrPayload, ...customerDetails }
+      : { invoiceId: invoiceIdOrPayload, ...customerDetails };
+
     return safeFetch('/payments/sslcommerz/init', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ invoiceId, ...customerDetails }),
-    }, {
-      status: 'SUCCESS',
-      GatewayPageURL: '#offline-payment-sim',
-      invoiceId
-    });
+      body: JSON.stringify(payload),
+    }, null, 25000);
   },
 
   async validateSSLCommerz(payload) {
@@ -925,7 +946,7 @@ export const api = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
-    });
+    }, null, 15000);
   },
 
   // Deductions
@@ -1264,9 +1285,7 @@ export const api = {
   // Database Management & Backup
   async resetData() {
     offlineDb.reset();
-    if (!isOfflineMode()) {
-      safeFetch('/reset-data', { method: 'POST' }).catch(() => {});
-    }
+    safeFetch('/reset-data', { method: 'POST' }).catch(() => {});
     return { success: true, message: 'Database reset to demo state' };
   },
 
@@ -1276,5 +1295,81 @@ export const api = {
 
   importData(jsonString) {
     return offlineDb.importDatabaseJson(jsonString);
+  },
+
+  // Firebase Connected Mode Methods
+  async getFirebaseStatus() {
+    return safeFetch('/firebase/status', {}, {
+      mode: 'firebase-connected',
+      offlineMode: false,
+      firebaseConnected: true,
+      projectId: 'edutrack-app',
+      statusText: 'সার্ভার ফায়ারবেস কানেক্টেড মোডে চলছে। অফলাইন মোড নিষ্ক্রিয়।'
+    });
+  },
+
+  async getFirebaseConfig() {
+    return safeFetch('/firebase/config', {}, {});
+  },
+
+  async saveServerFirebaseConfig(config) {
+    return safeFetch('/firebase/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(config)
+    });
+  },
+
+  async triggerServerFirebaseSync() {
+    return safeFetch('/firebase/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    }, { success: false, error: 'সার্ভারে ফায়ারবেস সিঙ্ক রিকোয়েস্ট পৌঁছায়নি।' }, 20000);
+  },
+
+  async getServerMode() {
+    return safeFetch('/mode', {}, { mode: 'firebase-connected', offlineMode: false });
+  },
+
+  // Teacher Reviews & Star Ratings
+  async getReviews(teacherId = null) {
+    if (isOfflineMode()) {
+      const all = offlineDb.getAll('reviews') || [];
+      const filtered = teacherId ? all.filter(r => r.teacherId === teacherId) : all;
+      const total = filtered.length;
+      const sum = filtered.reduce((s, r) => s + Number(r.rating || 5), 0);
+      const avg = total > 0 ? Number((sum / total).toFixed(1)) : 5.0;
+      return {
+        success: true,
+        reviews: filtered,
+        averageRating: avg,
+        totalReviews: total,
+        breakdown: {
+          5: filtered.filter(r => Number(r.rating) === 5).length,
+          4: filtered.filter(r => Number(r.rating) === 4).length,
+          3: filtered.filter(r => Number(r.rating) === 3).length,
+          2: filtered.filter(r => Number(r.rating) === 2).length,
+          1: filtered.filter(r => Number(r.rating) === 1).length
+        }
+      };
+    }
+    const path = teacherId ? `/reviews?teacherId=${teacherId}` : `/reviews`;
+    return safeFetch(path, {}, { success: true, reviews: [], averageRating: 5.0, totalReviews: 0, breakdown: {} });
+  },
+
+  async createReview(reviewData) {
+    if (isOfflineMode()) {
+      const created = offlineDb.insert('reviews', {
+        ...reviewData,
+        createdAt: new Date().toISOString()
+      });
+      return { success: true, review: created, message: 'রিভিউ সফলভাবে সংরক্ষিত হয়েছে!' };
+    }
+    return safeFetch('/reviews', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(reviewData)
+    }, null, 15000);
   }
 };
+

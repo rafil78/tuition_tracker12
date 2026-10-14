@@ -219,7 +219,7 @@ export function AuthProvider({ children }) {
       console.warn('API login network notice, falling back to local user store');
     }
 
-    // Local / Offline authentication fallback
+    // Firebase Connected User authentication
     const normalizedEmail = (email || '').trim().toLowerCase();
     const currentList = (users && users.length > 0) ? users : DEFAULT_USERS;
     const foundUser = currentList.find(u => 

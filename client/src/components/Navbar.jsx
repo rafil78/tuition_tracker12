@@ -93,30 +93,15 @@ export default function Navbar({ onOpenAuthPage, onOpenLocationModal, unreadMess
         {/* Center / Right controls */}
         <div className="flex items-center gap-2">
           
-          {/* Offline / Server Mode Pill */}
+          {/* Firebase Connected Mode Pill */}
           <button
             onClick={() => setShowServerModal(true)}
-            title={isOffline 
-              ? (lang === 'bn' ? '⚡ অফলাইন মোড সক্রিয় (ডিভাইস মেমোরিতে সেভ হচ্ছে)' : 'Offline Mode Active') 
-              : (lang === 'bn' ? 'সার্ভার সংযোগ সক্রিয়' : 'Server Connected')}
-            className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-bold transition shadow-sm ${
-              isOffline
-                ? 'border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
-                : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
-            }`}
+            title={lang === 'bn' ? '🔥 ফায়ারবেস কানেক্টেড মোড সক্রিয় (অফলাইন মোড নিষ্ক্রিয়)' : 'Firebase Connected Mode Active (Offline Mode Disabled)'}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-amber-300/80 bg-gradient-to-r from-amber-50 to-orange-50 text-amber-900 hover:from-amber-100 hover:to-orange-100 text-xs font-bold transition shadow-sm"
           >
-            {isOffline ? (
-              <>
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <HardDrive className="w-3.5 h-3.5 text-emerald-600" />
-                <span className="hidden sm:inline">{lang === 'bn' ? 'অফলাইন' : 'Offline'}</span>
-              </>
-            ) : (
-              <>
-                <Server className="w-3.5 h-3.5 text-indigo-600" />
-                <span className="hidden sm:inline">{lang === 'bn' ? 'সার্ভার' : 'Server'}</span>
-              </>
-            )}
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <Flame className="w-3.5 h-3.5 text-amber-600 fill-amber-500/30" />
+            <span className="hidden sm:inline font-mono tracking-tight text-[11px]">Firebase Live</span>
           </button>
 
           {/* Language Switcher Button */}
@@ -179,8 +164,8 @@ export default function Navbar({ onOpenAuthPage, onOpenLocationModal, unreadMess
             />
           </div>
 
-          {/* Home Tuition Live Tracker */}
-          {onOpenLocationModal && (
+          {/* Home Tuition Live Tracker (Students & Parents only) */}
+          {onOpenLocationModal && !isTeacher && !isAdmin && (
             <button
               onClick={onOpenLocationModal}
               title={lang === 'bn' ? 'হোম টিউশন ট্র্যাকার' : 'Home Tutor Tracker'}
@@ -201,36 +186,42 @@ export default function Navbar({ onOpenAuthPage, onOpenLocationModal, unreadMess
             <span>{lang === 'bn' ? 'লগইন' : 'Account'}</span>
           </button>
 
-          {/* Firebase Status */}
-          <button
-            onClick={() => setShowFirebaseModal(true)}
-            title="Firebase Config"
-            className="hidden lg:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 text-xs font-medium transition"
-          >
-            <Flame className={`w-3.5 h-3.5 ${isFirebaseConfigured() ? 'text-amber-500' : 'text-slate-400'}`} />
-            <span>Firebase</span>
-          </button>
+          {/* Firebase Status (Admin only) */}
+          {isAdmin && (
+            <button
+              onClick={() => setShowFirebaseModal(true)}
+              title="Firebase Config"
+              className="hidden lg:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 text-xs font-medium transition"
+            >
+              <Flame className={`w-3.5 h-3.5 ${isFirebaseConfigured() ? 'text-amber-500' : 'text-slate-400'}`} />
+              <span>Firebase</span>
+            </button>
+          )}
 
-          {/* Currency Pill */}
-          <button
-            onClick={() => setShowCurrencyModal(true)}
-            title="Currency"
-            className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-medium transition"
-          >
-            <Coins className="w-3.5 h-3.5 text-slate-400" />
-            <span>{settings?.currencySymbol || '৳'} {settings?.currencyCode || 'BDT'}</span>
-          </button>
+          {/* Currency Pill (Admin only) */}
+          {isAdmin && (
+            <button
+              onClick={() => setShowCurrencyModal(true)}
+              title="Currency"
+              className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-medium transition"
+            >
+              <Coins className="w-3.5 h-3.5 text-slate-400" />
+              <span>{settings?.currencySymbol || '৳'} {settings?.currencyCode || 'BDT'}</span>
+            </button>
+          )}
 
-          {/* Reset Demo Data Button */}
-          <button
-            onClick={handleResetData}
-            disabled={resetting}
-            title="Reset database to initial demo state"
-            className="hidden xl:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-colors"
-          >
-            <RotateCcw className={`w-3.5 h-3.5 ${resetting ? 'animate-spin' : ''}`} />
-            <span>Reset Demo DB</span>
-          </button>
+          {/* Reset Demo Data Button (Admin only) */}
+          {isAdmin && (
+            <button
+              onClick={handleResetData}
+              disabled={resetting}
+              title="Reset database to initial demo state"
+              className="hidden xl:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-colors"
+            >
+              <RotateCcw className={`w-3.5 h-3.5 ${resetting ? 'animate-spin' : ''}`} />
+              <span>Reset Demo DB</span>
+            </button>
+          )}
 
           {/* Sign In / Sign Up triggers if logged out */}
           {!currentUser ? (

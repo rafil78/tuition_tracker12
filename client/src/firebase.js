@@ -1,4 +1,5 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
+import { getAnalytics, isSupported as isAnalyticsSupported } from 'firebase/analytics';
 import { 
   getAuth, 
   GoogleAuthProvider, 
@@ -38,25 +39,41 @@ import {
   push as rtdbPush
 } from 'firebase/database';
 
+// Built-in Firebase configuration for the app
+export const BUILTIN_FIREBASE_CONFIG = {
+  apiKey: "AIzaSyB-Kc80s_NChpeDSRuW48thVj2hqQmVYGc",
+  authDomain: "tuition-12.firebaseapp.com",
+  databaseURL: "https://tuition-12-default-rtdb.firebaseio.com",
+  projectId: "tuition-12",
+  storageBucket: "tuition-12.firebasestorage.app",
+  messagingSenderId: "236299781390",
+  appId: "1:236299781390:web:9df53e0d86ac854d35835f",
+  measurementId: "G-NN73XWTBHN"
+};
+
 // Helper to retrieve saved Firebase configuration
 export function getFirebaseConfig() {
   try {
     const custom = localStorage.getItem('edutrack_firebase_config');
     if (custom) {
-      return JSON.parse(custom);
+      const parsed = JSON.parse(custom);
+      if (parsed && parsed.apiKey && parsed.projectId) {
+        return { ...BUILTIN_FIREBASE_CONFIG, ...parsed };
+      }
     }
   } catch (err) {
     console.warn('Failed to parse custom firebase config:', err);
   }
 
   return {
-    apiKey: import.meta.env.VITE_FIREBASE_API_KEY || '',
-    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || '',
-    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || '',
-    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || '',
-    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '',
-    appId: import.meta.env.VITE_FIREBASE_APP_ID || '',
-    measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || ''
+    apiKey: import.meta.env.VITE_FIREBASE_API_KEY || BUILTIN_FIREBASE_CONFIG.apiKey,
+    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || BUILTIN_FIREBASE_CONFIG.authDomain,
+    databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL || BUILTIN_FIREBASE_CONFIG.databaseURL,
+    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || BUILTIN_FIREBASE_CONFIG.projectId,
+    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || BUILTIN_FIREBASE_CONFIG.storageBucket,
+    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || BUILTIN_FIREBASE_CONFIG.messagingSenderId,
+    appId: import.meta.env.VITE_FIREBASE_APP_ID || BUILTIN_FIREBASE_CONFIG.appId,
+    measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || BUILTIN_FIREBASE_CONFIG.measurementId
   };
 }
 
@@ -75,6 +92,7 @@ let auth = null;
 let db = null;
 let rtdb = null;
 let storage = null;
+let analytics = null;
 let googleProvider = null;
 
 try {
@@ -88,6 +106,23 @@ try {
     try { db = getFirestore(app); } catch (e) { console.warn('Firestore init note:', e.message); }
     try { rtdb = getDatabase(app); } catch (e) { console.warn('Realtime DB init note:', e.message); }
     try { storage = getStorage(app); } catch (e) { console.warn('Storage init note:', e.message); }
+    
+    // Initialize Google Analytics if supported in the browser environment
+    if (typeof window !== 'undefined') {
+      isAnalyticsSupported().then((supported) => {
+        if (supported && app) {
+          try {
+            analytics = getAnalytics(app);
+            console.log('📊 [Firebase] Google Analytics initialized successfully');
+          } catch (e) {
+            console.warn('Analytics init note:', e.message);
+          }
+        }
+      }).catch((err) => {
+        console.warn('Analytics support check note:', err.message);
+      });
+    }
+
     googleProvider = new GoogleAuthProvider();
     googleProvider.setCustomParameters({ prompt: 'select_account' });
   }
@@ -95,7 +130,7 @@ try {
   console.warn('Firebase initialization notice:', err.message);
 }
 
-export { app, auth, db, rtdb, storage, googleProvider };
+export { app, auth, db, rtdb, storage, analytics, googleProvider, getAnalytics };
 
 // ================= FIREBASE AUTH HELPERS =================
 

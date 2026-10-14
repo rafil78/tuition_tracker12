@@ -296,7 +296,7 @@ export default function AttendanceTracker({ classes, onOpenReport }) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {enrollments.map(enr => {
+                {(isTeacher ? enrollments : enrollments.filter(e => e.studentId === currentUser?.id)).map(enr => {
                   const student = enr.student;
                   const currentStatus = attendanceRecords[enr.studentId]?.status || 'present';
                   const currentNotes = attendanceRecords[enr.studentId]?.notes || '';
@@ -324,40 +324,65 @@ export default function AttendanceTracker({ classes, onOpenReport }) {
 
                       <td className="py-4 px-6">
                         <div className="flex flex-col items-center gap-1.5">
-                          <div className="flex items-center gap-1.5 flex-wrap justify-center">
-                            {[
-                              { key: 'present', label: 'উপস্থিত', badge: 'নিয়মিত', color: 'emerald' },
-                              { key: 'late', label: 'দেরি', badge: 'দেরি', color: 'amber' },
-                              { key: 'student_absent', label: 'ছাত্র পড়েনি', badge: '৳০ কর্তন', color: 'blue' },
-                              { key: 'teacher_skipped', label: 'শিক্ষক বাদ দিয়েছেন', badge: `-${formatMoney(perClassRate)} কর্তন`, color: 'rose' }
-                            ].map(s => {
-                              const isCurrent = currentStatus === s.key;
-                              return (
-                                <button
-                                  key={s.key}
-                                  type="button"
-                                  disabled={!isTeacher}
-                                  onClick={() => handleStatusChange(enr.studentId, s.key)}
-                                  className={`px-3 py-1.5 text-xs font-bold rounded-xl border transition-all flex items-center gap-1.5 ${
-                                    isCurrent
-                                      ? s.key === 'present'
-                                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
-                                        : s.key === 'late'
-                                        ? 'bg-amber-500 text-white border-amber-500 shadow-sm'
-                                        : s.key === 'student_absent'
-                                        ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                                        : 'bg-rose-600 text-white border-rose-600 shadow-sm animate-pulse'
-                                      : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-                                  }`}
-                                >
-                                  <span>{s.label}</span>
-                                  <span className={`text-[9px] px-1 py-0.2 rounded font-mono ${isCurrent ? 'bg-black/20 text-white' : 'bg-slate-100 text-slate-500'}`}>
-                                    {s.badge}
-                                  </span>
-                                </button>
-                              );
-                            })}
-                          </div>
+                          {isTeacher ? (
+                            <div className="flex items-center gap-1.5 flex-wrap justify-center">
+                              {[
+                                { key: 'present', label: 'উপস্থিত', badge: 'নিয়মিত', color: 'emerald' },
+                                { key: 'late', label: 'দেরি', badge: 'দেরি', color: 'amber' },
+                                { key: 'student_absent', label: 'ছাত্র পড়েনি', badge: '৳০ কর্তন', color: 'blue' },
+                                { key: 'teacher_skipped', label: 'শিক্ষক বাদ দিয়েছেন', badge: `-${formatMoney(perClassRate)} কর্তন`, color: 'rose' }
+                              ].map(s => {
+                                const isCurrent = currentStatus === s.key;
+                                return (
+                                  <button
+                                    key={s.key}
+                                    type="button"
+                                    onClick={() => handleStatusChange(enr.studentId, s.key)}
+                                    className={`px-3 py-1.5 text-xs font-bold rounded-xl border transition-all flex items-center gap-1.5 ${
+                                      isCurrent
+                                        ? s.key === 'present'
+                                          ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+                                          : s.key === 'late'
+                                          ? 'bg-amber-500 text-white border-amber-500 shadow-sm'
+                                          : s.key === 'student_absent'
+                                          ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                                          : 'bg-rose-600 text-white border-rose-600 shadow-sm animate-pulse'
+                                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                                    }`}
+                                  >
+                                    <span>{s.label}</span>
+                                    <span className={`text-[9px] px-1 py-0.2 rounded font-mono ${isCurrent ? 'bg-black/20 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                                      {s.badge}
+                                    </span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            /* Clean Student Personal Status Badge */
+                            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl border text-xs font-bold">
+                              {currentStatus === 'present' && (
+                                <span className="text-emerald-700 bg-emerald-50 border-emerald-200 px-3 py-1 rounded-lg">
+                                  ✅ উপস্থিত (নিয়মিত)
+                                </span>
+                              )}
+                              {currentStatus === 'late' && (
+                                <span className="text-amber-700 bg-amber-50 border-amber-200 px-3 py-1 rounded-lg">
+                                  ⏳ দেরিতে উপস্থিতি
+                                </span>
+                              )}
+                              {currentStatus === 'student_absent' && (
+                                <span className="text-blue-700 bg-blue-50 border-blue-200 px-3 py-1 rounded-lg">
+                                  ℹ️ ছাত্র পড়া হয়নি (৳০ কর্তন)
+                                </span>
+                              )}
+                              {currentStatus === 'teacher_skipped' && (
+                                <span className="text-rose-700 bg-rose-50 border-rose-200 px-3 py-1 rounded-lg">
+                                  ⚠️ শিক্ষক ক্লাস বাদ দিয়েছেন (-{formatMoney(perClassRate)} কর্তন প্রযোজ্য)
+                                </span>
+                              )}
+                            </div>
+                          )}
 
                           {currentStatus === 'student_absent' && (
                             <span className="text-[10px] text-blue-600 font-bold">

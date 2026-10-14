@@ -1,0 +1,22 @@
+{
+  "firebase": {
+    "projectId": "tuition-12",
+    "apiKey": "",
+    "authDomain": "tuition-12.firebaseapp.com",
+    "databaseUrl": "https://tuition-12-default-rtdb.firebaseio.com",
+    "storageBucket": "tuition-12.firebasestorage.app",
+    "messagingSenderId": "236299781390",
+    "appId": "",
+    "measurementId": "",
+    "mode": "firebase-connected",
+    "offlineMode": false
+  },
+  "smtp": {
+    "user": "",
+    "pass": "",
+    "host": "smtp.gmail.com",
+    "port": 465,
+    "secure": true,
+    "from": "EduTrack Bangladesh <your-email@gmail.com>"
+  }
+}

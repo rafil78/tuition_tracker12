@@ -1,13 +1,14 @@
 {
   "name": "tuition-tracker-app",
   "version": "1.0.0",
+  "type": "module",
   "description": "Full-stack Tuition Tracker with Database, Payment Gateway and Student-Teacher Messaging",
   "scripts": {
     "install:all": "npm --prefix server install && npm --prefix client install",
     "server": "npm --prefix server start",
     "client": "npm --prefix client dev",
     "dev": "node dev-runner.js",
-    "offline": "npm --prefix client run dev",
+    "firebase:sync": "node -e \"fetch('http://localhost:5000/api/firebase/sync', {method:'POST'}).then(r=>r.json()).then(console.log)\"",
     "build": "npm --prefix client run build",
     "sync:android": "npm --prefix client run build && npm --prefix client exec cap sync android"
   },

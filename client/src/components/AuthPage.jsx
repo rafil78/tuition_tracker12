@@ -34,7 +34,6 @@ export default function AuthPage({ onGoToDashboard }) {
   const [otpStage, setOtpStage] = useState('form');
   const [otpCode, setOtpCode] = useState('');
   const [otpSentData, setOtpSentData] = useState(null);
-  const [showGmailPopup, setShowGmailPopup] = useState(false);
   const [otpTimer, setOtpTimer] = useState(600); // 10 minutes in seconds
   const [copiedOtp, setCopiedOtp] = useState(false);
 
@@ -48,7 +47,11 @@ export default function AuthPage({ onGoToDashboard }) {
   const [smtpConfig, setSmtpConfig] = useState({ configured: false, user: '' });
   const [smtpUser, setSmtpUser] = useState('');
   const [smtpPass, setSmtpPass] = useState('');
+  const [showSmtpPass, setShowSmtpPass] = useState(false);
   const [savingSmtp, setSavingSmtp] = useState(false);
+  const [testingSmtp, setTestingSmtp] = useState(false);
+  const [smtpTestMsg, setSmtpTestMsg] = useState('');
+  const [smtpTestError, setSmtpTestError] = useState('');
   const [resendingOtp, setResendingOtp] = useState(false);
 
   useEffect(() => {
@@ -61,8 +64,13 @@ export default function AuthPage({ onGoToDashboard }) {
   }, []);
 
   const handleSaveSmtp = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
+    if (!smtpUser || !smtpPass) {
+      setSmtpTestError('অনুগ্রহ করে প্রেরক জিমেইল ও অ্যাপ পাসওয়ার্ড পূরণ করুন।');
+      return;
+    }
     setSavingSmtp(true);
+    setSmtpTestError('');
     try {
       const res = await api.updateSmtpConfig({
         user: smtpUser.trim(),
@@ -71,16 +79,51 @@ export default function AuthPage({ onGoToDashboard }) {
         port: 465,
         secure: true
       });
-      if (res.success) {
+      if (res && res.success) {
         setSmtpConfig(res.config);
         setShowSmtpModal(false);
         setSuccessMsg('✅ জিমেইল এসএমটিপি সেটিংস সফলভাবে সংরক্ষিত হয়েছে!');
         setTimeout(() => setSuccessMsg(''), 4000);
+
+        // If the user was trying to send an OTP to their email, send it now
+        if (email && email.includes('@') && otpStage === 'form') {
+          setTimeout(() => {
+            handleSendOtp();
+          }, 300);
+        }
+      } else {
+        setSmtpTestError(res?.error || 'এসএমটিপি কনফিগারেশন সংরক্ষণ ব্যর্থ হয়েছে।');
       }
     } catch (err) {
-      setError('এসএমটিপি কনফিগারেশন সংরক্ষণ ব্যর্থ হয়েছে।');
+      setSmtpTestError('এসএমটিপি কনফিগারেশন সংরক্ষণ ব্যর্থ হয়েছে।');
     } finally {
       setSavingSmtp(false);
+    }
+  };
+
+  const handleTestSmtp = async () => {
+    if (!smtpUser || !smtpPass) {
+      setSmtpTestError('অনুগ্রহ করে প্রেরক জিমেইল ও ১৬-সংখ্যার অ্যাপ পাসওয়ার্ড লিখুন।');
+      return;
+    }
+    setTestingSmtp(true);
+    setSmtpTestMsg('');
+    setSmtpTestError('');
+    try {
+      const res = await api.testSmtpConfig({
+        user: smtpUser.trim(),
+        pass: smtpPass.trim(),
+        testEmail: email || smtpUser.trim()
+      });
+      if (res && res.success) {
+        setSmtpTestMsg(`✅ সংযোগ সফল! টেস্ট ইমেইল পৌঁছেছে: ${email || smtpUser}`);
+      } else {
+        setSmtpTestError(res?.error || 'সংযোগ ব্যর্থ হয়েছে। আপনার গুগল অ্যাপ পাসওয়ার্ড সঠিক কি না পরীক্ষা করুন।');
+      }
+    } catch (err) {
+      setSmtpTestError(err.message || 'সার্ভারে সংযোগ ব্যর্থ হয়েছে।');
+    } finally {
+      setTestingSmtp(false);
     }
   };
 
@@ -196,17 +239,23 @@ export default function AuthPage({ onGoToDashboard }) {
     setLoading(true);
 
     try {
-      // Request OTP from server
+      // Request real OTP from server
       const res = await api.sendOtp(email.trim(), name.trim());
       
-      if (res.success) {
+      if (res && res.success) {
         setOtpSentData(res);
         setOtpStage('otp_verification');
-        setShowGmailPopup(true);
         setOtpTimer(600);
-        setSuccessMsg(`আপনার জিমেইল (${email}) এ একটি গোপন ওটিপি কোড পাঠানো হয়েছে!`);
+        setSuccessMsg(`আপনার জিমেইল (${email}) এ ৬-সংখ্যার ওটিপি কোড পাঠানো হয়েছে! ইনবক্স চেক করুন।`);
+      } else if (res && res.isTimeout) {
+        setOtpStage('otp_verification');
+        setOtpTimer(600);
+        setSuccessMsg(`জিমেইলে ওটিপি পাঠানো হয়েছে। অনুগ্রহ করে ইনবক্স (${email}) চেক করে কোডটি এখানে লিখুন।`);
+      } else if (res && res.smtpNotConfigured) {
+        setError(res.error || 'জিমেইলে ওটিপি পাঠানোর জন্য জিমেইল এসএমটিপি ও অ্যাপ পাসওয়ার্ড সেট করা প্রয়োজন।');
+        setShowSmtpModal(true);
       } else {
-        setError(res.error || 'ওটিপি পাঠাতে ব্যর্থ হয়েছে। আবার চেষ্টা করুন।');
+        setError(res?.error || 'ওটিপি পাঠাতে ব্যর্থ হয়েছে। আবার চেষ্টা করুন।');
       }
     } catch (err) {
       console.error('OTP request error:', err);
@@ -221,13 +270,20 @@ export default function AuthPage({ onGoToDashboard }) {
     setResendingOtp(true);
     try {
       const res = await api.sendOtp(email.trim(), name.trim());
-      if (res.success) {
+      if (res && res.success) {
         setOtpSentData(res);
         setOtpTimer(600);
-        setSuccessMsg(`🔄 নতুন ওটিপি কোড পাঠানো হয়েছে (${email})!`);
+        setSuccessMsg(`🔄 আপনার জিমেইলে (${email}) নতুন ওটিপি কোড পাঠানো হয়েছে!`);
         setTimeout(() => setSuccessMsg(''), 4000);
+      } else if (res && res.isTimeout) {
+        setOtpTimer(600);
+        setSuccessMsg(`🔄 জিমেইলে ওটিপি পাঠানো হচ্ছে। ইনবক্স (${email}) চেক করুন।`);
+        setTimeout(() => setSuccessMsg(''), 4000);
+      } else if (res && res.smtpNotConfigured) {
+        setError(res.error || 'জিমেইল এসএমটিপি কনফিগার করা নেই।');
+        setShowSmtpModal(true);
       } else {
-        setError(res.error || 'পুনরায় ওটিপি পাঠাতে ব্যর্থ হয়েছে।');
+        setError(res?.error || 'পুনরায় ওটিপি পাঠাতে ব্যর্থ হয়েছে।');
       }
     } catch (err) {
       setError('সার্ভারে যোগাযোগ ব্যর্থ হয়েছে।');
@@ -729,54 +785,70 @@ export default function AuthPage({ onGoToDashboard }) {
                       )}
                     </button>
 
+                    <div className="text-center pt-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!email.trim()) {
+                            setError('অনুগ্রহ করে প্রথমে আপনার জিমেইল ঠিকানা দিন');
+                            return;
+                          }
+                          setOtpStage('otp_verification');
+                        }}
+                        className="text-xs text-indigo-600 hover:text-indigo-800 font-bold hover:underline"
+                      >
+                        📩 ইতোমধ্যে জিমেইলে ওটিপি কোড পেয়েছেন? এখানে লিখুন
+                      </button>
+                    </div>
+
                   </form>
                 ) : (
                   /* OTP Verification Stage */
                   <form onSubmit={handleVerifyOtpAndRegister} className="space-y-5 animate-fadeIn">
                     
                     <div className="text-center space-y-1">
-                      <div className="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-2">
-                        <Mail className="w-6 h-6" />
+                      <div className="w-14 h-14 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-2 shadow-inner">
+                        <Mail className="w-7 h-7 animate-pulse" />
                       </div>
                       <h3 className="text-lg font-black text-slate-900">
                         জিমেইল ওটিপি ভেরিফিকেশন
                       </h3>
                       <p className="text-xs text-slate-500">
-                        আমরা <span className="font-bold text-slate-800 font-mono">{email}</span> এ একটি ৬-ডিজিটের কোড পাঠিয়েছি।
+                        আপনার জিমেইল <span className="font-bold text-slate-900 font-mono bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">{email}</span> এ ৬-সংখ্যার কোড পাঠানো হয়েছে।
                       </p>
                     </div>
 
-                    {/* Real-time Delivery Status Banner */}
-                    <div className="bg-emerald-50/80 border border-emerald-200 rounded-2xl p-3.5 space-y-2">
+                    {/* Real Gmail Notice & Quick Link */}
+                    <div className="bg-indigo-50/80 border border-indigo-200/90 rounded-2xl p-4 space-y-3">
                       <div className="flex items-center justify-between text-xs">
-                        <span className="font-bold text-emerald-800 flex items-center gap-2">
+                        <span className="font-bold text-indigo-900 flex items-center gap-2">
                           <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-                          <span>রিয়েল-টাইম ইমেইল ডিসপ্যাচ সফল</span>
+                          <span>রিয়েল-টাইম জিমেইল ডিসপ্যাচ</span>
                         </span>
-                        <span className="text-[10px] bg-emerald-200/60 text-emerald-900 px-2 py-0.5 rounded-full font-mono font-bold">
-                          {otpSentData?.deliveryMethod || 'Live SMTP'}
+                        <span className="text-[10px] bg-indigo-200/60 text-indigo-900 px-2.5 py-0.5 rounded-full font-mono font-bold">
+                          smtp.gmail.com
                         </span>
                       </div>
 
-                      {otpSentData?.previewUrl && (
-                        <div className="pt-1">
-                          <a
-                            href={otpSentData.previewUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black shadow-sm transition-all group"
-                          >
-                            <ExternalLink className="w-3.5 h-3.5 text-emerald-200 group-hover:scale-110 transition-transform" />
-                            <span>📩 আপনার প্রেরিত লাইভ ইমেইলটি ব্রাউজারে খুলুন (Open Real Live Email)</span>
-                          </a>
-                        </div>
-                      )}
+                      <a
+                        href="https://mail.google.com"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="w-full flex items-center justify-center gap-2 py-2.5 px-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black shadow-md shadow-indigo-600/20 transition-all hover:scale-[1.01]"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        <span>📩 আপনার জিমেইল ইনবক্স খুলুন (Open Gmail Inbox)</span>
+                      </a>
+
+                      <p className="text-[10px] text-slate-500 text-center leading-relaxed">
+                        💡 ইনবক্সে কোড না পেলে অনুগ্রহ করে আপনার জিমেইলের <strong>Spam</strong> বা <strong>Promotions</strong> ফোল্ডার চেক করুন।
+                      </p>
                     </div>
 
                     {/* 6-Digit OTP Input Field */}
                     <div className="space-y-2">
                       <label className="block text-xs font-bold text-slate-700 text-center uppercase tracking-wider">
-                        ৬-ডিজিট ওটিপি কোড লিখুন
+                        জিমেইল থেকে পাওয়া ৬-ডিজিট কোড লিখুন
                       </label>
                       <input
                         type="text"
@@ -785,7 +857,7 @@ export default function AuthPage({ onGoToDashboard }) {
                         value={otpCode}
                         onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
                         placeholder="• • • • • •"
-                        className="w-full py-3 px-4 rounded-2xl border-2 border-indigo-500 text-2xl font-mono font-black text-center tracking-[0.5em] text-slate-900 focus:outline-none focus:ring-4 focus:ring-indigo-100 bg-indigo-50/20"
+                        className="w-full py-3.5 px-4 rounded-2xl border-2 border-indigo-500 text-3xl font-mono font-black text-center tracking-[0.4em] text-slate-900 focus:outline-none focus:ring-4 focus:ring-indigo-100 bg-white shadow-sm"
                         autoFocus
                       />
 
@@ -803,10 +875,11 @@ export default function AuthPage({ onGoToDashboard }) {
                           </button>
                           <button
                             type="button"
-                            onClick={() => setShowGmailPopup(true)}
-                            className="text-slate-600 hover:text-slate-900 font-bold flex items-center gap-1"
+                            onClick={() => setShowSmtpModal(true)}
+                            className="text-slate-600 hover:text-indigo-700 font-bold flex items-center gap-1 text-[11px]"
+                            title="জিমেইল এসএমটিপি সেটিংস"
                           >
-                            <span>পপআপ দেখুন</span>
+                            <span>⚙️ এসএমটিপি সেটিংস</span>
                           </button>
                         </div>
                       </div>
@@ -995,209 +1068,154 @@ export default function AuthPage({ onGoToDashboard }) {
 
       </main>
 
-      {/* GMAIL NOTIFICATION POPUP SIMULATION */}
-      {showGmailPopup && otpSentData && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fadeIn">
-          <div className="w-full max-w-lg bg-white text-slate-900 rounded-3xl shadow-2xl border border-slate-200 overflow-hidden font-sans transform transition-all">
-            
-            {/* Google / Gmail Header */}
-            <div className="bg-[#f2f6fc] px-5 py-3.5 border-b border-slate-200 flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="w-6 h-6 flex items-center justify-center font-black text-rose-600 text-base">
-                  M
-                </div>
-                <div>
-                  <h4 className="text-xs font-black text-slate-800 flex items-center gap-1.5">
-                    <span>Google Mail (Gmail) - সিকিউরিটি অ্যালার্ট</span>
-                    <span className="px-1.5 py-0.2 bg-rose-100 text-rose-700 text-[10px] rounded font-bold">ইনবক্স</span>
-                  </h4>
-                  <p className="text-[10px] text-slate-500">Google Workspace Security Notification</p>
-                </div>
-              </div>
-
-              <button
-                onClick={() => setShowGmailPopup(false)}
-                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Email Message Content */}
-            <div className="p-6 space-y-4">
-              
-              <div className="flex items-start justify-between pb-3 border-b border-slate-100">
-                <div>
-                  <p className="text-xs font-bold text-slate-800">
-                    EduTrack Security &lt;verify@edutrack.com.bd&gt;
-                  </p>
-                  <p className="text-[11px] text-slate-500">
-                    প্রাপক: <strong className="text-slate-700">{email}</strong>
-                  </p>
-                </div>
-                <span className="text-[10px] text-slate-400 font-mono">এখনই প্রাপ্ত</span>
-              </div>
-
-              <div>
-                <h3 className="text-base font-black text-slate-900">
-                  🔐 আপনার EduTrack অ্যাকাউন্ট ভেরিফিকেশন ওটিপি (Gmail OTP)
-                </h3>
-                <p className="text-xs text-slate-600 mt-2 leading-relaxed">
-                  প্রিয় <strong className="text-slate-800">{name || 'ব্যবহারকারী'}</strong>,<br />
-                  EduTrack Bangladesh প্ল্যাটফর্মে আপনাকে স্বাগতম। আপনার জিমেইল অ্যাকাউন্টটি সফলভাবে সক্রিয় করতে নিচের ৬-ডিজিটের ওটিপি কোডটি ব্যবহার করুন:
-                </p>
-              </div>
-
-              {/* Big OTP Code Highlight Box */}
-              <div className="bg-slate-50 rounded-2xl border-2 border-indigo-200 p-5 text-center space-y-2">
-                <span className="text-[11px] font-bold text-indigo-700 uppercase tracking-widest">
-                  ওয়ান-টাইম পাসওয়ার্ড (OTP)
-                </span>
-                
-                <div className="text-3xl sm:text-4xl font-mono font-black text-indigo-600 tracking-[0.3em]">
-                  {otpSentData.otp}
-                </div>
-
-                <p className="text-[10px] text-slate-400">
-                  এই কোডটি আগামী ১০ মিনিটের জন্য বৈধ। কাউকে এটি শেয়ার করবেন না।
-                </p>
-              </div>
-
-              {/* Live Real Email Link */}
-              {otpSentData?.previewUrl && (
-                <div className="pt-1">
-                  <a
-                    href={otpSentData.previewUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="w-full flex items-center justify-center gap-2 py-2.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black shadow-sm transition-all"
-                  >
-                    <ExternalLink className="w-3.5 h-3.5" />
-                    <span>📩 বাস্তব লাইভ ইমেইলটি ব্রাউজারে খুলুন (Open Real Live Email)</span>
-                  </a>
-                </div>
-              )}
-
-              {/* Quick Actions */}
-              <div className="grid grid-cols-2 gap-2.5 pt-1">
-                <button
-                  type="button"
-                  onClick={handleCopyOtp}
-                  className="py-2.5 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1.5"
-                >
-                  {copiedOtp ? (
-                    <>
-                      <Check className="w-4 h-4 text-emerald-600" />
-                      <span className="text-emerald-700">কপি হয়েছে!</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-4 h-4" />
-                      <span>ওটিপি কপি করুন</span>
-                    </>
-                  )}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    handleAutofillOtp();
-                    setShowGmailPopup(false);
-                  }}
-                  className="py-2.5 px-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1.5 shadow-md shadow-indigo-600/20"
-                >
-                  <Sparkles className="w-4 h-4" />
-                  <span>অটো-ফিল করুন ও যাচাইয়ে যান</span>
-                </button>
-              </div>
-
-            </div>
-
-            {/* Modal Bottom */}
-            <div className="bg-slate-50 px-6 py-3 border-t border-slate-200 text-right">
-              <button
-                type="button"
-                onClick={() => setShowGmailPopup(false)}
-                className="text-xs font-bold text-slate-600 hover:text-slate-900"
-              >
-                পপআপ বন্ধ করুন (Close)
-              </button>
-            </div>
-
-          </div>
-        </div>
-      )}
-
-      {/* SMTP SETTINGS MODAL */}
+      {/* REAL GMAIL SMTP SETTINGS MODAL */}
       {showSmtpModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
-          <div className="w-full max-w-md bg-white text-slate-900 rounded-3xl shadow-2xl border border-slate-200 overflow-hidden font-sans">
-            <div className="bg-gradient-to-r from-indigo-600 to-indigo-700 text-white px-6 py-4 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Mail className="w-5 h-5 text-indigo-200" />
-                <h3 className="font-bold text-base">রিয়েল-টাইম জিমেইল এসএমটিপি সেটিংস</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fadeIn">
+          <div className="w-full max-w-lg bg-white text-slate-900 rounded-3xl shadow-2xl border border-slate-200 overflow-hidden font-sans">
+            
+            {/* Header */}
+            <div className="bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-700 text-white px-6 py-5 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-white/15 flex items-center justify-center shadow-inner">
+                  <Mail className="w-5 h-5 text-indigo-100" />
+                </div>
+                <div>
+                  <h3 className="font-black text-base">রিয়েল জিমেইল ওটিপি কনফিগারেশন</h3>
+                  <p className="text-xs text-indigo-100/90">Google SMTP (smtp.gmail.com) সার্ভিস সেটআপ</p>
+                </div>
               </div>
               <button
-                onClick={() => setShowSmtpModal(false)}
-                className="text-white/80 hover:text-white p-1 rounded-lg"
+                onClick={() => {
+                  setShowSmtpModal(false);
+                  setSmtpTestMsg('');
+                  setSmtpTestError('');
+                }}
+                className="text-white/80 hover:text-white p-2 rounded-xl hover:bg-white/10 transition-colors"
               >
                 ✕
               </button>
             </div>
 
             <form onSubmit={handleSaveSmtp} className="p-6 space-y-4">
-              <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-3.5 text-xs text-indigo-900 leading-relaxed">
-                <p className="font-bold mb-1">💡 সরাসরি আপনার জিমেইলে ওটিপি পাঠানোর নিয়ম:</p>
-                <p className="text-slate-600 text-[11px]">
-                  আপনার Google অ্যাকাউন্টের <strong>16-Digit App Password</strong> প্রদান করলে সরাসরি আপনার ব্যক্তিগত ইনবক্সে ওটিপি পৌঁছাবে। কোনো সেটিংস পরিবর্তন না করলেও অন্তর্নির্মিত লাইভ রিয়েলটাইম এসএমটিপি সার্ভার দ্বারা ওটিপি নিশ্চিত করা হয়।
-                </p>
+              
+              {/* Google App Password Guide Card */}
+              <div className="bg-indigo-50 border border-indigo-200/90 rounded-2xl p-4 text-xs text-indigo-950 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-extrabold flex items-center gap-1.5 text-indigo-900">
+                    <Sparkles className="w-4 h-4 text-indigo-600" />
+                    <span>সরাসরি জিমেইলে ওটিপি পেতে ১-মিনিট গাইড:</span>
+                  </span>
+                  <a
+                    href="https://myaccount.google.com/apppasswords"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 underline flex items-center gap-1"
+                  >
+                    <span>গুগল পেজ খুলুন</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+                <ol className="list-decimal list-inside space-y-1 text-slate-700 text-[11px] leading-relaxed">
+                  <li>আপনার Google একাউন্টে <strong>2-Step Verification</strong> চালু থাকতে হবে।</li>
+                  <li><a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noreferrer" className="text-indigo-600 font-bold underline">myaccount.google.com/apppasswords</a> এ যান।</li>
+                  <li>অ্যাপের নাম দিন <strong>EduTrack</strong> এবং Generate চাপলে ১৬-সংখ্যার কোড পাবেন।</li>
+                  <li>সেই ১৬-সংখ্যার কোডটি নিচের ঘরে বসিয়ে সংরক্ষণ করুন!</li>
+                </ol>
               </div>
+
+              {/* Status alerts */}
+              {smtpTestMsg && (
+                <div className="bg-emerald-50 border border-emerald-300 rounded-xl p-3 text-xs text-emerald-800 font-bold flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>{smtpTestMsg}</span>
+                </div>
+              )}
+              {smtpTestError && (
+                <div className="bg-rose-50 border border-rose-300 rounded-xl p-3 text-xs text-rose-800 font-semibold flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                  <span>{smtpTestError}</span>
+                </div>
+              )}
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  প্রেরক জিমেইল ঠিকানা (Sender Gmail)
+                  প্রেরক জিমেইল ঠিকানা (Sender Gmail Account)
                 </label>
-                <input
-                  type="email"
-                  value={smtpUser}
-                  onChange={(e) => setSmtpUser(e.target.value)}
-                  placeholder="youraccount@gmail.com"
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-mono"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  গুগল অ্যাপ পাসওয়ার্ড (16-Digit App Password)
-                </label>
-                <input
-                  type="password"
-                  value={smtpPass}
-                  onChange={(e) => setSmtpPass(e.target.value)}
-                  placeholder="xxxx xxxx xxxx xxxx"
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-mono"
-                />
+                <div className="relative">
+                  <input
+                    type="email"
+                    required
+                    value={smtpUser}
+                    onChange={(e) => setSmtpUser(e.target.value)}
+                    placeholder="yourname@gmail.com"
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-mono"
+                  />
+                  <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+                </div>
                 <p className="text-[10px] text-slate-400 mt-1">
-                  গুগল অ্যাকাউন্ট &gt; সিকিউরিটি &gt; ২-স্টেপ ভেরিফিকেশন &gt; অ্যাপ পাসওয়ার্ড
+                  এই জিমেইল অ্যাকাউন্টটি ব্যবহার করে শিক্ষার্থীদের কাছে সরাসরি ভেরিফিকেশন ওটিপি পাঠানো হবে।
                 </p>
               </div>
 
-              <div className="pt-2 flex items-center justify-end gap-2">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  গুগল ১৬-ডিজিট অ্যাপ পাসওয়ার্ড (Google App Password)
+                </label>
+                <div className="relative">
+                  <input
+                    type={showSmtpPass ? 'text' : 'password'}
+                    required
+                    value={smtpPass}
+                    onChange={(e) => setSmtpPass(e.target.value)}
+                    placeholder="xxxx xxxx xxxx xxxx"
+                    className="w-full pl-10 pr-12 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-mono tracking-wider"
+                  />
+                  <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+                  <button
+                    type="button"
+                    onClick={() => setShowSmtpPass(!showSmtpPass)}
+                    className="absolute right-3 top-2.5 text-xs text-slate-400 hover:text-slate-600 font-bold"
+                  >
+                    {showSmtpPass ? 'লুকান' : 'দেখুন'}
+                  </button>
+                </div>
+                <p className="text-[10px] text-slate-400 mt-1">
+                  এটি আপনার স্বাভাবিক গুগল পাসওয়ার্ড নয়, এটি গুগল থেকে তৈরি ১৬-সংখ্যার অ্যাপ পাসওয়ার্ড।
+                </p>
+              </div>
+
+              <div className="pt-2 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100">
                 <button
                   type="button"
-                  onClick={() => setShowSmtpModal(false)}
-                  className="px-4 py-2.5 text-xs font-bold text-slate-600 hover:text-slate-800"
+                  onClick={handleTestSmtp}
+                  disabled={testingSmtp || !smtpUser || !smtpPass}
+                  className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold transition flex items-center gap-1.5 disabled:opacity-50"
                 >
-                  বাতিল
+                  <RotateCw className={`w-3.5 h-3.5 ${testingSmtp ? 'animate-spin' : ''}`} />
+                  <span>{testingSmtp ? 'পরীক্ষা করা হচ্ছে...' : '🧪 সংযোগ টেস্ট করুন'}</span>
                 </button>
-                <button
-                  type="submit"
-                  disabled={savingSmtp}
-                  className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-md flex items-center gap-1.5"
-                >
-                  {savingSmtp ? <RotateCw className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-                  <span>সংরক্ষণ করুন</span>
-                </button>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowSmtpModal(false);
+                      setSmtpTestMsg('');
+                      setSmtpTestError('');
+                    }}
+                    className="px-4 py-2.5 text-xs font-bold text-slate-600 hover:text-slate-800 rounded-xl"
+                  >
+                    বাতিল
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={savingSmtp || !smtpUser || !smtpPass}
+                    className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black shadow-md flex items-center gap-1.5 disabled:opacity-50"
+                  >
+                    {savingSmtp ? <RotateCw className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                    <span>সংরক্ষণ ও প্রয়োগ করুন</span>
+                  </button>
+                </div>
               </div>
             </form>
           </div>

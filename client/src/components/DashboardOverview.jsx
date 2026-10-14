@@ -1,17 +1,37 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   DollarSign, Users, BookOpen, Clock, Calendar, 
   CreditCard, Video, AlertCircle, CheckCircle2, ArrowRight,
-  TrendingUp, MessageSquare, ShieldCheck, FileSpreadsheet
+  TrendingUp, MessageSquare, ShieldCheck, FileSpreadsheet, Star
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { api } from '../api';
 import SSLCommerzModal from './SSLCommerzModal';
 import InvoiceReceiptModal from './InvoiceReceiptModal';
+import TeacherReviewsModal from './TeacherReviewsModal';
 
 export default function DashboardOverview({ stats, classes, invoices, enrollments, assignments, onNavigate, onRefresh }) {
   const { currentUser, isTeacher, formatMoney, lang } = useAuth();
   const [selectedPayInvoice, setSelectedPayInvoice] = useState(null);
   const [selectedReceiptInvoice, setSelectedReceiptInvoice] = useState(null);
+  const [showReviewsModal, setShowReviewsModal] = useState(false);
+  const [teacherReviewStats, setTeacherReviewStats] = useState({
+    averageRating: 4.8,
+    totalReviews: 5
+  });
+
+  useEffect(() => {
+    if (isTeacher && currentUser?.id) {
+      api.getReviews(currentUser.id).then(res => {
+        if (res && res.success) {
+          setTeacherReviewStats({
+            averageRating: res.averageRating || 4.8,
+            totalReviews: res.totalReviews || 0
+          });
+        }
+      }).catch(() => {});
+    }
+  }, [isTeacher, currentUser?.id]);
 
   const myInvoices = invoices.filter(i => i.studentId === currentUser?.id);
   const myPendingInvoices = myInvoices.filter(i => i.status === 'pending' || i.status === 'overdue');
@@ -91,7 +111,7 @@ export default function DashboardOverview({ stats, classes, invoices, enrollment
 
       {/* Metrics Row */}
       {isTeacher ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
           <div className="bg-white p-4 rounded-xl border border-slate-200 flex items-center justify-between">
             <div>
               <p className="text-xs text-slate-500 font-medium">{lang === 'bn' ? 'মোট আয়' : 'Total Revenue'}</p>
@@ -137,6 +157,31 @@ export default function DashboardOverview({ stats, classes, invoices, enrollment
             </div>
             <div className="w-10 h-10 bg-emerald-50 rounded-lg flex items-center justify-center text-emerald-700">
               <CheckCircle2 className="w-5 h-5" />
+            </div>
+          </div>
+
+          <div 
+            onClick={() => setShowReviewsModal(true)}
+            className="bg-gradient-to-br from-amber-500/10 via-white to-amber-500/5 p-4 rounded-xl border border-amber-300/80 hover:border-amber-400 flex items-center justify-between cursor-pointer transition shadow-sm hover:shadow group"
+          >
+            <div>
+              <p className="text-xs text-amber-900 font-semibold flex items-center gap-1">
+                <span>{lang === 'bn' ? 'শিক্ষার্থী রেটিং' : 'Rating & Reviews'}</span>
+              </p>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <span className="text-xl font-black text-slate-900 font-mono">
+                  {teacherReviewStats.averageRating}
+                </span>
+                <span className="flex text-amber-400">
+                  <Star className="w-4 h-4 fill-amber-400" />
+                </span>
+              </div>
+              <p className="text-[10px] text-amber-700 font-bold group-hover:underline mt-0.5">
+                {teacherReviewStats.totalReviews} {lang === 'bn' ? 'টি রিভিউ দেখুন →' : 'Reviews →'}
+              </p>
+            </div>
+            <div className="w-10 h-10 bg-amber-100/80 rounded-lg flex items-center justify-center text-amber-600 group-hover:scale-110 transition-transform">
+              <Star className="w-5 h-5 fill-amber-400" />
             </div>
           </div>
         </div>
@@ -249,37 +294,83 @@ export default function DashboardOverview({ stats, classes, invoices, enrollment
               {lang === 'bn' ? 'দ্রুত নেভিগেশন' : 'Quick Actions'}
             </h3>
             <div className="grid grid-cols-2 gap-2 text-xs">
-              <button
-                onClick={() => onNavigate('invoices')}
-                className="p-2.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 font-medium text-left transition flex items-center gap-2"
-              >
-                <DollarSign className="w-4 h-4 text-slate-600" />
-                <span>{lang === 'bn' ? 'ইনভয়েস' : 'Invoices'}</span>
-              </button>
+              {isTeacher ? (
+                <>
+                  <button
+                    onClick={() => onNavigate('tuition-jobs')}
+                    className="p-2.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 font-medium text-left transition flex items-center gap-2"
+                  >
+                    <BookOpen className="w-4 h-4 text-indigo-600" />
+                    <span>{lang === 'bn' ? 'টিউশন জব' : 'Tuition Jobs'}</span>
+                  </button>
 
-              <button
-                onClick={() => onNavigate('messages')}
-                className="p-2.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 font-medium text-left transition flex items-center gap-2"
-              >
-                <MessageSquare className="w-4 h-4 text-slate-600" />
-                <span>{lang === 'bn' ? 'মেসেজ' : 'Messages'}</span>
-              </button>
+                  <button
+                    onClick={() => onNavigate('attendance')}
+                    className="p-2.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 font-medium text-left transition flex items-center gap-2"
+                  >
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    <span>{lang === 'bn' ? 'হাজিরা' : 'Attendance'}</span>
+                  </button>
 
-              <button
-                onClick={() => onNavigate('attendance')}
-                className="p-2.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 font-medium text-left transition flex items-center gap-2"
-              >
-                <CheckCircle2 className="w-4 h-4 text-slate-600" />
-                <span>{lang === 'bn' ? 'হাজিরা' : 'Attendance'}</span>
-              </button>
+                  <button
+                    onClick={() => onNavigate('invoices')}
+                    className="p-2.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 font-medium text-left transition flex items-center gap-2"
+                  >
+                    <DollarSign className="w-4 h-4 text-amber-600" />
+                    <span>{lang === 'bn' ? 'ইনভয়েস' : 'Invoices'}</span>
+                  </button>
 
-              <button
-                onClick={() => onNavigate('reports')}
-                className="p-2.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 font-medium text-left transition flex items-center gap-2"
-              >
-                <FileSpreadsheet className="w-4 h-4 text-slate-600" />
-                <span>{lang === 'bn' ? 'রিপোর্ট' : 'Reports'}</span>
-              </button>
+                  <button
+                    onClick={() => setShowReviewsModal(true)}
+                    className="p-2.5 rounded-lg border border-amber-200 bg-amber-50/50 hover:bg-amber-100/70 text-amber-900 font-medium text-left transition flex items-center gap-2"
+                  >
+                    <Star className="w-4 h-4 text-amber-500 fill-amber-400" />
+                    <span>{lang === 'bn' ? 'শিক্ষার্থী রিভিউ' : 'Student Reviews'}</span>
+                  </button>
+
+                  <button
+                    onClick={() => onNavigate('messages')}
+                    className="p-2.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 font-medium text-left transition flex items-center gap-2"
+                  >
+                    <MessageSquare className="w-4 h-4 text-blue-600" />
+                    <span>{lang === 'bn' ? 'মেসেজ' : 'Messages'}</span>
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={() => onNavigate('find-tutor')}
+                    className="p-2.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 font-medium text-left transition flex items-center gap-2"
+                  >
+                    <BookOpen className="w-4 h-4 text-indigo-600" />
+                    <span>{lang === 'bn' ? 'টিউটর খুঁজুন' : 'Find Tutor'}</span>
+                  </button>
+
+                  <button
+                    onClick={() => onNavigate('routine')}
+                    className="p-2.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 font-medium text-left transition flex items-center gap-2"
+                  >
+                    <Clock className="w-4 h-4 text-blue-600" />
+                    <span>{lang === 'bn' ? 'ক্লাস রুটিন' : 'Routine'}</span>
+                  </button>
+
+                  <button
+                    onClick={() => onNavigate('invoices')}
+                    className="p-2.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 font-medium text-left transition flex items-center gap-2"
+                  >
+                    <DollarSign className="w-4 h-4 text-emerald-600" />
+                    <span>{lang === 'bn' ? 'ফি পরিশোধ' : 'Pay Dues'}</span>
+                  </button>
+
+                  <button
+                    onClick={() => onNavigate('messages')}
+                    className="p-2.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 font-medium text-left transition flex items-center gap-2"
+                  >
+                    <MessageSquare className="w-4 h-4 text-amber-600" />
+                    <span>{lang === 'bn' ? 'ডাউট চ্যাট' : 'Chat'}</span>
+                  </button>
+                </>
+              )}
             </div>
           </div>
 
@@ -287,7 +378,7 @@ export default function DashboardOverview({ stats, classes, invoices, enrollment
           <div className="bg-white rounded-xl border border-slate-200 p-5">
             <div className="flex items-center justify-between mb-2.5">
               <h3 className="font-bold text-slate-900 text-sm">
-                {lang === 'bn' ? 'সাম্প্রতিক বিল' : 'Recent Bills'}
+                {isTeacher ? (lang === 'bn' ? 'সাম্প্রতিক বিল' : 'Recent Bills') : (lang === 'bn' ? 'আমার সাম্প্রতিক ইনভয়েস' : 'My Invoices')}
               </h3>
               <button
                 onClick={() => onNavigate('invoices')}
@@ -298,7 +389,7 @@ export default function DashboardOverview({ stats, classes, invoices, enrollment
             </div>
 
             <div className="space-y-2">
-              {invoices.slice(0, 3).map(inv => (
+              {(isTeacher ? invoices : myInvoices).slice(0, 3).map(inv => (
                 <div key={inv.id} className="flex items-center justify-between text-xs py-1.5 border-b border-slate-100 last:border-0">
                   <div>
                     <p className="font-medium text-slate-800">{inv.student?.name || 'Student'}</p>
@@ -336,6 +427,31 @@ export default function DashboardOverview({ stats, classes, invoices, enrollment
         isOpen={!!selectedReceiptInvoice}
         onClose={() => setSelectedReceiptInvoice(null)}
       />
+
+      {/* Teacher Reviews Modal */}
+      {isTeacher && currentUser && (
+        <TeacherReviewsModal
+          isOpen={showReviewsModal}
+          onClose={() => setShowReviewsModal(false)}
+          teacher={{
+            id: currentUser.id,
+            name: currentUser.name,
+            avatar: currentUser.avatar,
+            rating: teacherReviewStats.averageRating,
+            reviewCount: teacherReviewStats.totalReviews,
+            verified: true,
+            subjects: currentUser.subjects || ['উচ্চতর গণিত', 'পদার্থবিজ্ঞান']
+          }}
+          onReviewAdded={(res) => {
+            if (res?.averageRating) {
+              setTeacherReviewStats({
+                averageRating: res.averageRating,
+                totalReviews: res.totalReviews
+              });
+            }
+          }}
+        />
+      )}
 
     </div>
   );
