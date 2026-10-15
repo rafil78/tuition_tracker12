@@ -1004,6 +1004,7 @@ export const api = {
       return {
         success: true,
         otp: '123456',
+        isOfflineFallback: true,
         message: 'অফলাইন মোড সক্রিয় (ওটিপি কোড: 123456)',
         deliveryMethod: 'Offline Instant Generator'
       };
@@ -1012,31 +1013,38 @@ export const api = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, name }),
-    }, null, 8000);
+    }, null, 25000); // 25s timeout for Google SMTP handshake & dispatch
 
     if (!res || res.networkError) {
       return {
-        success: true,
-        otp: '123456',
-        message: 'সার্ভার অফলাইন: ডেমো ওটিপি সক্রিয় (কোড: 123456)',
-        deliveryMethod: 'Offline Instant Fallback'
+        success: false,
+        networkError: true,
+        isTimeout: !!res?.isTimeout,
+        error: res?.isTimeout
+          ? 'জিমেইল সার্ভার থেকে রেসপন্স পেতে অতিরিক্ত সময় লাগছে। অনুগ্রহ করে পুনরায় চেষ্টা করুন বা এসএমটিপি সেটিংস চেক করুন।'
+          : (res?.error || 'সার্ভারের সাথে যোগাযোগ করা যায়নি।'),
+        fallbackOtp: '123456'
       };
     }
     return res;
   },
 
   async verifyOtp(email, otp) {
-    if (isOfflineMode() || otp === '123456') {
+    const cleanOtp = (otp || '').toString().trim();
+    if (isOfflineMode() || cleanOtp === '123456') {
       return { success: true, verified: true };
     }
     const res = await safeFetch('/auth/verify-otp', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, otp }),
-    }, null, 8000);
+      body: JSON.stringify({ email, otp: cleanOtp }),
+    }, null, 15000);
 
     if (!res || res.networkError) {
-      return { success: true, verified: true };
+      if (cleanOtp === '123456') {
+        return { success: true, verified: true };
+      }
+      return { success: false, error: res?.error || 'সার্ভার সংযোগ সমস্যা। অফলাইন কোড 123456 ব্যবহার করতে পারেন।' };
     }
     return res;
   },
@@ -1056,7 +1064,7 @@ export const api = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(config),
-    }, null, 8000);
+    }, null, 12000);
   },
 
   async testSmtpConfig(config) {
@@ -1067,7 +1075,7 @@ export const api = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(config),
-    }, null, 10000);
+    }, null, 25000);
   },
 
   // SSLCommerz

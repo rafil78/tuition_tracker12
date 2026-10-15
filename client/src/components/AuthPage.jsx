@@ -88,7 +88,7 @@ export default function AuthPage({ onGoToDashboard }) {
         // If the user was trying to send an OTP to their email, send it now
         if (email && email.includes('@') && otpStage === 'form') {
           setTimeout(() => {
-            handleSendOtp();
+            handleRequestOtp();
           }, 300);
         }
       } else {
@@ -116,7 +116,7 @@ export default function AuthPage({ onGoToDashboard }) {
         testEmail: email || smtpUser.trim()
       });
       if (res && res.success) {
-        setSmtpTestMsg(`✅ সংযোগ সফল! টেস্ট ইমেইল পৌঁছেছে: ${email || smtpUser}`);
+        setSmtpTestMsg(res.message || `✅ সংযোগ সফল! টেস্ট ইমেইল পৌঁছেছে: ${email || smtpUser}`);
       } else {
         setSmtpTestError(res?.error || 'সংযোগ ব্যর্থ হয়েছে। আপনার গুগল অ্যাপ পাসওয়ার্ড সঠিক কি না পরীক্ষা করুন।');
       }
@@ -246,14 +246,16 @@ export default function AuthPage({ onGoToDashboard }) {
         setOtpSentData(res);
         setOtpStage('otp_verification');
         setOtpTimer(600);
-        setSuccessMsg(`আপনার জিমেইল (${email}) এ ৬-সংখ্যার ওটিপি কোড পাঠানো হয়েছে! ইনবক্স চেক করুন।`);
-      } else if (res && res.isTimeout) {
-        setOtpStage('otp_verification');
-        setOtpTimer(600);
-        setSuccessMsg(`জিমেইলে ওটিপি পাঠানো হয়েছে। অনুগ্রহ করে ইনবক্স (${email}) চেক করে কোডটি এখানে লিখুন।`);
+        setSuccessMsg(res.message || `আপনার জিমেইল (${email}) এ ৬-সংখ্যার ওটিপি কোড পাঠানো হয়েছে! ইনবক্স চেক করুন।`);
       } else if (res && res.smtpNotConfigured) {
         setError(res.error || 'জিমেইলে ওটিপি পাঠানোর জন্য জিমেইল এসএমটিপি ও অ্যাপ পাসওয়ার্ড সেট করা প্রয়োজন।');
         setShowSmtpModal(true);
+      } else if (res && res.fallbackOtp) {
+        // Fallback backup code provided
+        setOtpSentData(res);
+        setOtpStage('otp_verification');
+        setOtpTimer(600);
+        setError(res.error || 'জিমেইল ওটিপি পাঠানো যায়নি। আপনি নিচে প্রদর্শিত ব্যাকআপ কোড ব্যবহার করতে পারেন।');
       } else {
         setError(res?.error || 'ওটিপি পাঠাতে ব্যর্থ হয়েছে। আবার চেষ্টা করুন।');
       }
@@ -273,15 +275,15 @@ export default function AuthPage({ onGoToDashboard }) {
       if (res && res.success) {
         setOtpSentData(res);
         setOtpTimer(600);
-        setSuccessMsg(`🔄 আপনার জিমেইলে (${email}) নতুন ওটিপি কোড পাঠানো হয়েছে!`);
-        setTimeout(() => setSuccessMsg(''), 4000);
-      } else if (res && res.isTimeout) {
-        setOtpTimer(600);
-        setSuccessMsg(`🔄 জিমেইলে ওটিপি পাঠানো হচ্ছে। ইনবক্স (${email}) চেক করুন।`);
-        setTimeout(() => setSuccessMsg(''), 4000);
+        setSuccessMsg(res.message || `🔄 আপনার জিমেইলে (${email}) নতুন ওটিপি কোড পাঠানো হয়েছে!`);
+        setTimeout(() => setSuccessMsg(''), 5000);
       } else if (res && res.smtpNotConfigured) {
         setError(res.error || 'জিমেইল এসএমটিপি কনফিগার করা নেই।');
         setShowSmtpModal(true);
+      } else if (res && res.fallbackOtp) {
+        setOtpSentData(res);
+        setOtpTimer(600);
+        setError(res.error || 'জিমেইল ওটিপি বিলম্বিত। ব্যাকআপ কোড ব্যবহার করতে পারেন।');
       } else {
         setError(res?.error || 'পুনরায় ওটিপি পাঠাতে ব্যর্থ হয়েছে।');
       }
@@ -826,7 +828,7 @@ export default function AuthPage({ onGoToDashboard }) {
                           <span>রিয়েল-টাইম জিমেইল ডিসপ্যাচ</span>
                         </span>
                         <span className="text-[10px] bg-indigo-200/60 text-indigo-900 px-2.5 py-0.5 rounded-full font-mono font-bold">
-                          smtp.gmail.com
+                          {smtpConfig.user || 'smtp.gmail.com'}
                         </span>
                       </div>
 
@@ -844,6 +846,28 @@ export default function AuthPage({ onGoToDashboard }) {
                         💡 ইনবক্সে কোড না পেলে অনুগ্রহ করে আপনার জিমেইলের <strong>Spam</strong> বা <strong>Promotions</strong> ফোল্ডার চেক করুন।
                       </p>
                     </div>
+
+                    {/* Fallback / Offline OTP Helper if active */}
+                    {(otpSentData?.otp || otpSentData?.fallbackOtp) && (
+                      <div className="bg-amber-50 border border-amber-300/80 rounded-2xl p-3 flex items-center justify-between text-xs text-amber-950 animate-fadeIn">
+                        <div className="flex items-center gap-2">
+                          <span className="text-base">🔑</span>
+                          <div>
+                            <span className="font-bold">ব্যাকআপ / ডেমো কোড: </span>
+                            <span className="font-mono font-black text-sm text-indigo-900 bg-white px-2 py-0.5 rounded border border-indigo-200">
+                              {otpSentData.otp || otpSentData.fallbackOtp}
+                            </span>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setOtpCode(otpSentData.otp || otpSentData.fallbackOtp)}
+                          className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[11px] font-bold shadow-sm transition-all"
+                        >
+                          কোড বসান
+                        </button>
+                      </div>
+                    )}
 
                     {/* 6-Digit OTP Input Field */}
                     <div className="space-y-2">
